@@ -201,7 +201,7 @@ Managed by Michael Jacobs and Ayesha Patel across the Western Cape:
 
 View the live prototype here:
 
-### https://zulfique.github.io/PropCare-WIL-Task1/prototype/
+### https://zulfique.github.io/PropCare-WIL-Task1/
 
 The prototype is automatically deployed to GitHub Pages whenever changes are pushed to the `main` branch. The `prototype` folder is served as the root of the Pages site.
 

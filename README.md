@@ -13,7 +13,7 @@ PropCare connects residents, property managers and technicians in one auditable 
 
 ## Demo accounts
 
-Open the **[live prototype](https://zulfique.github.io/PropCare-WIL-Task1/prototype/)**, pick a demo account from the dropdown, and sign in (any password works — demo only).
+Open the **[live prototype](https://zulfique.github.io/PropCare-WIL-Task1/)**, pick a demo account from the dropdown, and sign in (any password works — demo only).
 
 | Role | Person | Email |
 |------|--------|-------|
@@ -86,7 +86,7 @@ Or open `prototype/login.html` directly in any modern browser.
 
 ## View Live
 
-**[ Click here to view the live prototype on GitHub Pages ](https://zulfique.github.io/PropCare-WIL-Task1/prototype/)**
+**[ Click here to view the live prototype on GitHub Pages ](https://zulfique.github.io/PropCare-WIL-Task1/)**
 
 ## Getting Started
 

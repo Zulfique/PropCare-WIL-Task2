@@ -199,7 +199,7 @@ Managed by Michael Jacobs and Ayesha Patel across the Western Cape:
 
 ## Live Prototype (GitHub Pages)
 
-🚀 **View the live prototype here:**
+View the live prototype here:
 
 ### https://zulfique.github.io/PropCare-WIL-Task1/prototype/
 

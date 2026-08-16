@@ -38,8 +38,8 @@ Open the **[live prototype](https://zulfique.github.io/PropCare-WIL-Task1/)**, p
 
 ```
 prototype/
-  ├── login.html              # Entry point: login screen with demo account selector
-  ├── index.html              # Dashboard/overview for logged-in users
+              
+  ├── index.html               # Entry point: login screen with demo account selector/ # Dashboard/overview for logged-in users 
   ├── 
   ├── css/
   │   └── style.css           # All styling: colors, layout, components, responsive design
@@ -90,7 +90,7 @@ Or open `prototype/login.html` directly in any modern browser.
 
 ## Getting Started
 
-1. Open `login.html` to see the login screen
+1. Open `index.html` to see the login screen
 2. Select a demo account from the dropdown (e.g., "Sarah Williams — Tenant")
 3. Use any password (demo only, no validation)
 4. Click "Sign in to PropCare" to access the dashboard

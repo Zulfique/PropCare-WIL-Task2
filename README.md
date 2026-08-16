@@ -86,7 +86,7 @@ Or open `prototype/login.html` directly in any modern browser.
 
 ## View Live
 
-**[ Click here to view the live prototype on GitHub Pages ✨](https://zulfique.github.io/PropCare-WIL-Task1/prototype/index.html)**
+**[ Click here to view the live prototype on GitHub Pages ](https://zulfique.github.io/PropCare-WIL-Task1/prototype/)**
 
 ## Getting Started
 
@@ -201,7 +201,7 @@ Managed by Michael Jacobs and Ayesha Patel across the Western Cape:
 
 View the live prototype here:
 
-### https://zulfique.github.io/PropCare-WIL-Task1/prototype/index.html
+### https://zulfique.github.io/PropCare-WIL-Task1/prototype/
 
 The prototype is automatically deployed to GitHub Pages whenever changes are pushed to the `main` branch. The `prototype` folder is served as the root of the Pages site.
 

@@ -75,7 +75,7 @@ router.post('/login', loginValidation, async (req, res, next) => {
   }
 });
 
-router.get('/me', authenticate, (req, res) => {
+router.get('/me', authenticate, (req, res, next) => {
   const row = q.userById().get(req.user.id);
   if (!row) {
     return next(new AppError('User no longer exists', 404));

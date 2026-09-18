@@ -1,5 +1,26 @@
-.playwright-mcp/
+# Secrets - never commit
+.env
+
+# Node
 node_modules/
+
+# Database files (SQLite)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Logs
+*.log
+logs/
+
+# OS / editor
 .DS_Store
 Thumbs.db
-*.log
+.idea/
+.vscode/
+
+# Test / tooling artifacts
+coverage/
+.playwright-mcp/
+browser-shots/

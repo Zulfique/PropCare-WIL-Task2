@@ -24,4 +24,9 @@ jobs:
           curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
 
       - name: Confirmed deploy requested
+        if: steps.hook.outputs.deployed == 'true'
         run: echo "Render deploy hook triggered for ${{ github.repository }}@${{ github.sha }}"
+
+      - name: Deploy skipped
+        if: steps.hook.outputs.deployed != 'true'
+        run: echo "::warning::Render deployment was skipped because no deploy hook is configured."

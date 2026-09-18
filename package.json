@@ -4,9 +4,9 @@
   "description": "PropCare Task 2 - full-stack property maintenance management system (Express + SQLite + JWT + REST API) for Obs Realty Group",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
-    "seed": "node scripts/seed-cli.js",
+    "start": "node --experimental-sqlite server.js",
+    "dev": "nodemon --experimental-sqlite server.js",
+    "seed": "node --experimental-sqlite scripts/seed-cli.js",
     "test": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --detectOpenHandles",
     "test:watch": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:browser": "node scripts/browser-test.js",

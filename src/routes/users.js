@@ -51,7 +51,7 @@ router.post('/', authorize('admin'), registerUserValidation, async (req, res, ne
 });
 
 // GET /api/users/me - own profile (with units)
-router.get('/me', (req, res) => {
+router.get('/me', (req, res, next) => {
   const row = q.userById().get(req.user.id);
   if (!row) {
     return next(new AppError('User not found', 404));

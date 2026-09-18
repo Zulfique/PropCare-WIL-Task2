@@ -58,6 +58,27 @@ npm run test:browser  # headless Puppeteer walk-through of every screen/button p
 
 Test suites cover authentication, RBAC (role + object-level), the request lifecycle state machine, comments/photos/ratings, notifications, reports and security headers. The browser suite additionally verifies responsive mobile navigation, keyboard-only navigation, focus visibility, and that every control on every screen has an accessible name.
 
+## Verification results (Task 2, as of the final release commit)
+
+| Suite | Scope | Result |
+| --- | --- | --- |
+| `npm test` | 4 Jest + supertest API suites (auth, lifecycle, RBAC, reports) | **82 / 82 pass** |
+| `npm run test:browser` | Headless browser walk-through of every screen, button and function for all 4 roles + mobile + accessibility | **70 / 70 pass** |
+| `npm run check` | `node --check` syntax gate | pass |
+| `html-validate` | `public/index.html` + `prototype/*.html` | pass |
+| GitHub Actions | `CI - Lint, Build and Test` on `develop` and `main` | green |
+
+The browser suite drives the app end-to-end: login per role, report wizard (photo attach + submit), comment, manager assign, tech complete route, user/rating/close lifecycle, CSV export, admin user/category/settings changes, 390px mobile navigation, and keyboard-only operation — producing `browser-shots/` (role-organised full-page screenshots) and `browser-shots/summary.txt` as evidence.
+
+**Demo accounts** (password `PropCare123!`):
+
+| Role | Email | Signs in as |
+| --- | --- | --- |
+| Tenant | `sarahwilliams@example.com` | Sarah Williams |
+| Manager | `michael.jacobs@obsrealty.co.za` | Michael Jacobs |
+| Technician | `johan.vdm@obsrealty.co.za` | Johan van der Merwe |
+| Administrator | `admin@obsrealty.co.za` | System Admin |
+
 ## API surface
 
 | Method | Endpoint | Notes |

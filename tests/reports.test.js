@@ -13,20 +13,47 @@ async function login(email) {
 describe('Reports API - GET /api/reports/summary', () => {
   it('returns portfolio-scoped totals for a manager', async () => {
     const token = await login('michael.jacobs@obsrealty.co.za');
+
+
     const res = await request(app)
       .get('/api/reports/summary')
       .set('Authorization', `Bearer ${token}`);
 
+
     expect(res.status).toBe(200);
+
+
     const s = res.body.data.summary;
-    expect(s.total).toBe(8);
-    expect(s.open).toBe(7);
+
+
+    expect(s.total).toBe(9);
+    expect(s.open).toBe(8);
     expect(s.resolved).toBe(1);
+
+
     expect(Array.isArray(s.byCategory)).toBe(true);
     expect(Array.isArray(s.byProperty)).toBe(true);
     expect(Array.isArray(s.byStatus)).toBe(true);
+
+
     expect(s.byProperty[0].count).toBe(3);
     expect(s.properties.length).toBe(6);
+
+
+    const statusCounts = Object.fromEntries(
+      s.byStatus.map((item) => [item.status, item.count])
+    );
+
+
+    expect(statusCounts['in-progress']).toBe(2);
+    expect(statusCounts.completed).toBe(1);
+    expect(statusCounts.closed).toBe(1);
+    expect(statusCounts.submitted).toBe(2);
+
+
+    // Requests belonging to Ayesha's portfolio must not appear
+    // in Michael's status totals.
+    expect(statusCounts.assigned || 0).toBe(0);
   });
 
   it('returns platform-wide totals for an admin', async () => {

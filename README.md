@@ -5,10 +5,10 @@ The app is designed to run on **Render** with a persistent SQLite disk.
 ### Render configuration
 
 - `render.yaml` — Render Blueprint for the web service.
-- SQLite database is stored at /data/propcare.db.
+- SQLite database is stored at `/data/propcare.db`.
 - `DB_PATH=/data/propcare.db` keeps the database on the persistent disk.
 - `JWT_SECRET` must be configured in the Render environment.
-- Render uses /api/health as the service health check.
+- Render uses `/api/health` as the service health check.
 
 ### GitHub Actions deployment
 

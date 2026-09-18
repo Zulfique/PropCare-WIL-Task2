@@ -93,16 +93,16 @@ describe('Requests API - GET /api/requests/:id', () => {
     expect(r.history.length).toBeGreaterThanOrEqual(4);
   });
 it('returns the seeded rating on a completed request', async () => {
-    const token = await login('priya.naidoo@example.com');
+  const token = await login('priya.naidoo@example.com');
 
 
-    const res = await request(app)
-      .get('/api/requests/REQ-1027')
-      .set('Authorization', `Bearer ${token}`);
+  const res = await request(app)
+    .get('/api/requests/REQ-1027')
+    .set('Authorization', `Bearer ${token}`);
 
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.request.rating).toBe(5);
+  expect(res.status).toBe(200);
+  expect(res.body.data.request.rating).toBe(5);
 });
 
   it('returns 404 for an unknown request id', async () => {

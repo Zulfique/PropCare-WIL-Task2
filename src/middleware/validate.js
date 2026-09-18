@@ -165,16 +165,34 @@ const updateProfileValidation = [
     .withMessage('Name cannot be empty')
     .isLength({ max: 100 })
     .withMessage('Name must not exceed 100 characters'),
+
+
   body('email')
     .optional()
     .trim()
     .isEmail()
     .withMessage('A valid email address is required')
     .normalizeEmail(),
+
+
   body('password')
     .optional()
     .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters long'),
+    .withMessage('New password must be at least 8 characters long')
+    .matches(/[A-Z]/)
+    .withMessage(
+      'New password must contain at least one uppercase letter'
+    )
+    .matches(/[a-z]/)
+    .withMessage(
+      'New password must contain at least one lowercase letter'
+    )
+    .matches(/\d/)
+    .withMessage(
+      'New password must contain at least one number'
+    ),
+
+
   handleValidationErrors,
 ];
 

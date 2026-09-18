@@ -90,10 +90,20 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Requests without Origin include curl, Postman and server-to-server calls.
+      if (!origin) {
         return callback(null, true);
       }
-      return callback(new Error('CORS origin not allowed'));
+
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+
+      // Reject the origin without converting the request into an
+      // application-level 500 error.
+      return callback(null, false);
     },
   })
 );

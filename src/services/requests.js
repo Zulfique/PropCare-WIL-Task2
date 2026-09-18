@@ -303,9 +303,11 @@ function createRequest(tenant, body) {
   const id = `REQ-${nextNum}`;
   const today = nowStamp().slice(0, 10);
 
-  // Default property: first unit owned by the tenant, falling back to P1.
   const units = q.unitsForUser().all(tenant.id);
-  const propertyId = units.length ? units[0].property_id : 'P1';
+  // Derive property_id from the unit the tenant submitted, rather than always
+  // defaulting to the first unit in the tenant's unit list.
+  const selectedUnit = units.find((u) => u.name === body.unit || u.name.includes(body.unit));
+  const propertyId = selectedUnit ? selectedUnit.property_id : (units.length ? units[0].property_id : 'P1');
 
   q.insertRequest().run(
     id,

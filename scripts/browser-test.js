@@ -63,7 +63,17 @@ async function login(page, role) {
   await page.waitForSelector('#loginScreen:not(.hidden)');
   await page.select('#loginRole', EMAILS[role]);
   await page.click('#loginBtn');
-  await page.waitForSelector('#app:not(.hidden)');
+  try {
+    await page.waitForSelector('#app:not(.hidden)', { timeout: 10000 });
+  } catch (e) {
+    const diag = await page.evaluate(() => ({
+      toast: document.getElementById('toast').textContent.slice(0, 120),
+      loginErr: (document.querySelector('#loginScreen .error-msg') || {}).textContent || '',
+      banner: (document.querySelector('#appBody .error-banner') || {}).textContent || '',
+      hash: location.hash,
+    }));
+    throw new Error('login failed as ' + role + ' -> ' + JSON.stringify(diag));
+  }
   await page.waitForFunction(() => document.querySelectorAll('.hero').length > 0, { timeout: 10000 });
   const name = await page.evaluate(() => document.getElementById('userName').textContent);
   if (!name) record('login ' + role, FAIL, '#userName empty');
@@ -491,16 +501,24 @@ async function keyboardSuite(browser) {
   });
 
   let lifecycleId = null;
+  let where = 'tenantSuite';
   try {
+    where = 'tenantSuite';
     lifecycleId = await tenantSuite(browser);
+    where = 'managerSuite';
     await managerSuite(browser, lifecycleId);
+    where = 'techSuite';
     await techSuite(browser, lifecycleId);
+    where = 'adminSuite';
     await adminSuite(browser);
+    where = 'mobileSuite';
     await mobileSuite(browser);
+    where = 'keyboardSuite';
     await keyboardSuite(browser);
 
     if (lifecycleId) {
       /* final proof: tenant reopens request, rates, confirms & closes */
+      where = 'finalLifecycle';
       const { page, ctxErrors } = await newContext(browser);
       await login(page, 'tenant');
       await nav(page, '#/requests');
@@ -534,8 +552,8 @@ async function keyboardSuite(browser) {
       await page.close();
     }
   } catch (e) {
-    record('unhandled', FAIL, e.message);
-    errors.push('unhandled: ' + e.message);
+    record('unhandled', FAIL, '[' + where + '] ' + e.message);
+    errors.push('unhandled [' + where + ']: ' + e.message);
   } finally {
     await browser.close();
   }

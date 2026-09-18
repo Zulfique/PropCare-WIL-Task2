@@ -2,6 +2,16 @@
 
 A property maintenance management platform for **Obs Realty Group (OBS REALTY)**, covering a residential portfolio across the Western Cape. This repository contains the **Task 2 full-stack web application** (Express + SQLite + JWT REST API with an API-driven front end) and the original **Task 1 prototype**.
 
+## Quick links
+
+| What | URL |
+|------|-----|
+| This repository | <https://github.com/Zulfique/PropCare-WIL-Task2> |
+| App running locally | <http://localhost:8124> |
+| API health check | <http://localhost:8124/api/health> |
+| Task 1 prototype (live, GitHub Pages) | <https://zulfique.github.io/PropCare-WIL-Task2/> |
+| Task 2 deployment target (Render — pending deploy hook) | <https://propcare-wil-task2.onrender.com/> |
+
 ## What PropCare does
 
 - Residents report issues in under a minute — with category, urgency, details and photos.
@@ -39,14 +49,17 @@ All seeded accounts use the password `PropCare123!`.
 
 ## Run locally
 
+Prerequisites: **Node.js ≥ 22.5** (uses built-in `node:sqlite`), npm.
+
 ```bash
 npm install
-npm run seed        # optional - DB auto-seeds on first boot anyway
-npm start           # node --experimental-sqlite server.js
+Copy-Item .env.example .env   # then set JWT_SECRET (>= 32 chars) in .env
+npm run seed                  # optional - DB auto-seeds and seeds on first boot anyway
+npm start                     # node --experimental-sqlite server.js
 # open http://localhost:8124
 ```
 
-Environment: copy `.env.example` to `.env` and set a `JWT_SECRET` of **at least 32 characters**. The server refuses to start without it. See `.env.example` for `PORT`, `DB_PATH` and `DEMO_PASSWORD`.
+The server refuses to start without a valid `JWT_SECRET` (at least 32 characters). See `.env.example` for `PORT`, `DB_PATH` and `DEMO_PASSWORD`. On Windows, PowerShell users can generate a secret with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 
 ## Tests
 
@@ -136,7 +149,7 @@ The app is designed to run on **Render** (free tier) with a persistent SQLite di
 
 > Free-tier caveat: Render spins the app down after ~15 min idle; the first page load after a cold start takes a few seconds.
 
-The **Task 1 prototype** remains hosted on **GitHub Pages** at [zulfique.github.io/PropCare-WIL-Task1](https://zulfique.github.io/PropCare-WIL-Task1/) via `.github/workflows/build.yml`.
+The **Task 1 prototype** remains hosted on **GitHub Pages** at [zulfique.github.io/PropCare-WIL-Task2](https://zulfique.github.io/PropCare-WIL-Task2/) via `.github/workflows/build.yml`.
 
 ## Branching & CI (Task 2 rubric)
 

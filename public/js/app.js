@@ -77,7 +77,8 @@
     var sub = esc(r.categoryName || '') + ' &middot; ' + esc(urgName(r.urgency)) + ' urgency &middot; ' +
       esc(r.unit) + ' &middot; updated ' + esc(r.updated);
     if (r.propertyName) sub += ' &middot; ' + esc(r.propertyName);
-    return '<div class="request-item" data-id="' + esc(r.id) + '">' +
+    return '<div class="request-item" data-id="' + esc(r.id) + '" tabindex="0" role="link" aria-label="Open request ' +
+      esc(r.id) + ', ' + esc(r.title) + '">' +
       '<div><div class="r-main">' + esc(r.title) + '</div>' +
       '<div class="r-sub">' + sub + '</div></div>' +
       '<div class="r-right">' + badge(r.status) +
@@ -150,7 +151,7 @@
 
   function activeKey() {
     var hash = location.hash.replace(/^#\/?/, '');
-    var seg = hash.split('/')[0];
+    var seg = hash.split('?')[0].split('/')[0];
     return seg || 'overview';
   }
 
@@ -338,7 +339,7 @@
         '</div>' +
         '<div class="card"><h3 class="card-title">Priority queue</h3><div class="table-wrap"><table><thead><tr>' +
         '<th>Request</th><th>Status</th><th>Priority</th><th>Updated</th></tr></thead><tbody>' +
-        queue.slice(0, 6).map(function (r) { return '<tr class="clickable" data-go="#/request/' + esc(r.id) + '">' + reqRowFor(r) + '</tr>'; }).join('') +
+        queue.slice(0, 6).map(function (r) { return '<tr class="clickable" data-go="#/request/' + esc(r.id) + '" tabindex="0" role="link" aria-label="Open request ' + esc(r.id) + '">' + reqRowFor(r) + '</tr>'; }).join('') +
         '</tbody></table></div>' +
         '<button type="button" class="btn btn-ghost" style="margin-top:14px" data-go="#/requests">View all requests</button></div>');
     } catch (e) { failUI(e); }
@@ -419,7 +420,7 @@
       }
       var statuses = ['all'].concat(openStatuses().concat(['completed', 'closed', 'cancelled', 'rejected']));
       var chips = statuses.map(function (s) {
-        return '<span class="chip' + (statusFilter === s ? ' active' : '') + '" data-filter="' + s + '">' +
+        return '<span class="chip' + (statusFilter === s ? ' active' : '') + '" data-filter="' + s + '" tabindex="0" role="button" aria-pressed="' + (statusFilter === s) + '">' +
           (s === 'all' ? 'All statuses' : esc(statusLabel(s))) + '</span>';
       }).join('');
       render(
@@ -792,7 +793,7 @@
     var ui = '';
     if (s.step === 1) {
       ui = '<div class="card"><h3 class="card-title">What needs attention?</h3><div class="category-row">' +
-        CATS.map(function (c) { return '<span class="chip' + (s.cat === c.id ? ' active' : '') + '" data-cat="' + c.id + '">' + esc(c.name) + '</span>'; }).join('') +
+        CATS.map(function (c) { return '<span class="chip' + (s.cat === c.id ? ' active' : '') + '" data-cat="' + c.id + '" tabindex="0" role="button" aria-pressed="' + (s.cat === c.id) + '">' + esc(c.name) + '</span>'; }).join('') +
         '</div></div>';
     } else if (s.step === 2) {
       ui = '<div class="card"><h3 class="card-title">How urgent is it?</h3><div class="urg-options">' +
@@ -825,10 +826,15 @@
         '<button type="button" class="btn btn-accent" data-go="#/requests">Go to my requests</button></div></div>'));
 
     body().querySelectorAll('[data-cat]').forEach(function (c) {
-      c.addEventListener('click', function () {
+      var choose = function () {
         s.cat = c.getAttribute('data-cat');
-        body().querySelectorAll('[data-cat]').forEach(function (x) { x.classList.toggle('active', x === c); });
-      });
+        body().querySelectorAll('[data-cat]').forEach(function (x) {
+          x.classList.toggle('active', x === c);
+          x.setAttribute('aria-pressed', x === c ? 'true' : 'false');
+        });
+      };
+      c.addEventListener('click', choose);
+      c.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); choose(); } });
     });
     body().querySelectorAll('[data-urg]').forEach(function (c) {
       var choose = function () {
@@ -1028,7 +1034,7 @@
         '<div class="hero"><h1>Assigned jobs</h1><p>' + jobs.length + ' active job(s) &middot; ' + accept.length + ' awaiting your acceptance.</p></div>' +
         '<div class="req-list">' +
         (jobs.map(function (r) {
-          return '<div class="request-item" data-id="' + r.id + '"><div>' +
+          return '<div class="request-item" data-id="' + r.id + '" tabindex="0" role="link" aria-label="Open job ' + esc(r.id) + '"><div>' +
             '<div class="r-main">' + esc(r.title) + '</div>' +
             '<div class="r-sub">' + esc(r.id) + ' &middot; ' + esc(r.unit) + ' &middot; ' + esc(r.propertyName || '') + '</div></div>' +
             '<div class="r-right">' + badge(r.status) + '</div></div>';
@@ -1065,7 +1071,7 @@
         '<div class="hero"><h1>Completed jobs</h1><p>' + done.length + ' jobs completed, verified with before/after photos.</p></div>' +
         '<div class="req-list">' +
         (done.map(function (r) {
-          return '<div class="request-item" data-id="' + r.id + '"><div>' +
+          return '<div class="request-item" data-id="' + r.id + '" tabindex="0" role="link" aria-label="Open job ' + esc(r.id) + '"><div>' +
             '<div class="r-main">' + esc(r.title) + '</div>' +
             '<div class="r-sub">' + esc(r.id) + ' &middot; ' + esc(r.unit) + '</div></div>' +
             '<div class="r-right">' + badge(r.status) + '</div></div>';
@@ -1248,7 +1254,7 @@
   async function route() {
     if (!state.user) { showLogin(); return; }
     var hash = location.hash.replace(/^#\/?/, '');
-    var parts = hash.split('/');
+    var parts = hash.split('?')[0].split('/');
     var seg = parts[0] || 'overview';
     var id = parts[1] || '';
     renderShell();
@@ -1361,6 +1367,15 @@
       }
       var go = e.target.closest('[data-go]');
       if (go) location.hash = go.getAttribute('data-go');
+    });
+    document.getElementById('appBody').addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var t = e.target;
+      if (!t || !t.matches) return;
+      if (t.matches('.request-item[data-id]:not([data-static])') || t.matches('[data-filter]') || t.matches('[data-go]')) {
+        e.preventDefault();
+        t.click();
+      }
     });
   }
 

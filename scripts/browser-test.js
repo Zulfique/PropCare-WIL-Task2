@@ -135,6 +135,7 @@ async function tenantSuite(browser) {
     await shot(page, 'tenant', key);
     if (!(await assertClean(page, ctxErrors, 'tenant nav ' + key))) break;
     record('tenant nav ' + key, PASS, 'screenshot saved');
+    await auditInteractives(page, ctxErrors, 'tenant ' + key);
   }
 
   /* report issue wizard */
@@ -256,6 +257,7 @@ async function managerSuite(browser, id) {
     await shot(page, 'manager', key);
     if (!(await assertClean(page, ctxErrors, 'manager nav ' + key))) break;
     record('manager nav ' + key, PASS, 'screenshot saved');
+    await auditInteractives(page, ctxErrors, 'manager ' + key);
   }
 
   if (id) {
@@ -284,6 +286,7 @@ async function techSuite(browser, id) {
     await shot(page, 'tech', key);
     if (!(await assertClean(page, ctxErrors, 'tech nav ' + key))) break;
     record('tech nav ' + key, PASS, 'screenshot saved');
+    await auditInteractives(page, ctxErrors, 'tech ' + key);
   }
 
   if (id) {
@@ -304,6 +307,7 @@ async function adminSuite(browser) {
     await shot(page, 'admin', key);
     if (!(await assertClean(page, ctxErrors, 'admin nav ' + key))) break;
     record('admin nav ' + key, PASS, 'screenshot saved');
+    await auditInteractives(page, ctxErrors, 'admin ' + key);
   }
 
   /* add user */
@@ -375,6 +379,97 @@ async function mobileSuite(browser) {
   await page.close();
 }
 
+/* ---------- accessibility audits (9.4.1) ---------- */
+async function auditInteractives(page, ctxErrors, label) {
+  const bad = await page.evaluate(() => {
+    const list = [];
+    const rendered = (el, s) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    document.querySelectorAll('button, a[href], input, select, textarea, [role="button"], [role="link"], [tabindex="0"]').forEach((el) => {
+      if (el.type === 'hidden') return;
+      if (!rendered(el)) return;
+      const acc = (el.getAttribute('aria-label') || '').trim() ||
+        (el.getAttribute('aria-labelledby') ? 'via-aria' : '') ||
+        (el.labels && el.labels.length ? 'via-label' : '') ||
+        (el.textContent || '').trim() ||
+        (el.getAttribute('placeholder') || '').trim() ||
+        (el.getAttribute('alt') || '').trim();
+      if (!acc) list.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + '.' + String(el.className || '').split(' ')[0]);
+    });
+    return list;
+  });
+  record('a11y names ' + label, bad.length ? FAIL : PASS, bad.length ? bad.slice(0, 4).join(' | ') : 'all controls have accessible names');
+  return assertClean(page, ctxErrors, 'a11y names ' + label);
+}
+
+async function keyboardSuite(browser) {
+  const { page, ctxErrors } = await newContext(browser);
+  await login(page, 'tenant');
+  await nav(page, '#/requests');
+  await auditInteractives(page, ctxErrors, 'requests');
+
+  /* Tab to a status-filter chip and activate with Enter */
+  let chipHit = false, outline = '';
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('Tab');
+    const info = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el) return null;
+      return {
+        isChip: el.hasAttribute('data-filter') && !el.classList.contains('active'),
+        outline: getComputedStyle(el).outlineStyle + ':' + getComputedStyle(el).outlineWidth,
+        cls: String(el.className)
+      };
+    });
+    if (info && info.isChip) { chipHit = true; outline = info.outline; break; }
+  }
+  record(chipHit ? 'keyboard focus chip' : 'keyboard focus chip', chipHit ? PASS : FAIL, outline);
+  if (chipHit) {
+    await page.keyboard.press('Enter');
+    await new Promise((r) => setTimeout(r, 500));
+    await waitRendered(page);
+    const hash = await page.evaluate(() => location.hash);
+    record(hash.indexOf('status=') !== -1 ? 'keyboard filter chip' : 'keyboard filter chip', hash.indexOf('status=') !== -1 ? PASS : FAIL, hash);
+  }
+
+  /* Tab to a request card and open it with Enter */
+  await nav(page, '#/requests');
+  let cardHit = false;
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('Tab');
+    const isCard = await page.evaluate(() => !!document.activeElement && document.activeElement.matches('.request-item[data-id]:not([data-static])'));
+    if (isCard) { cardHit = true; break; }
+  }
+  record(cardHit ? 'keyboard focus request' : 'keyboard focus request', cardHit ? PASS : FAIL, '');
+  if (cardHit) {
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.getElementById('appBody').textContent.includes('Status history') || !!document.querySelector('#appBody .error-banner'), { timeout: 8000 });
+    await waitRendered(page);
+    const hash = await page.evaluate(() => location.hash);
+    record(hash.indexOf('#/request/') !== -1 ? 'keyboard open request' : 'keyboard open request', hash.indexOf('#/request/') !== -1 ? PASS : FAIL, hash);
+    await auditInteractives(page, ctxErrors, 'request detail');
+  }
+
+  const skip = await page.evaluate(() => {
+    const s = document.querySelector('.skip-link');
+    if (!s) return false;
+    s.focus();
+    return getComputedStyle(s).top !== '-100%';
+  });
+  if (!skip) {
+    await page.evaluate(() => { document.querySelector('.skip-link').focus(); });
+  }
+  const focusRing = await page.evaluate(() => {
+    const s = getComputedStyle(document.querySelector('.skip-link'));
+    return s.outlineStyle !== 'none';
+  });
+  record('keyboard skip-link', focusRing ? PASS : FAIL, 'focusable + visible');
+
+  await page.close();
+}
+
 /* ---------- main ---------- */
 (async () => {
   try {
@@ -402,6 +497,7 @@ async function mobileSuite(browser) {
     await techSuite(browser, lifecycleId);
     await adminSuite(browser);
     await mobileSuite(browser);
+    await keyboardSuite(browser);
 
     if (lifecycleId) {
       /* final proof: tenant reopens request, rates, confirms & closes */

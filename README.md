@@ -53,9 +53,10 @@ Environment: copy `.env.example` to `.env` and set a `JWT_SECRET` of **at least 
 ```bash
 npm test            # jest + supertest against an in-memory SQLite database
 npm run check       # node --check on server.js and src/app.js
+npm run test:browser  # headless Puppeteer walk-through of every screen/button per role
 ```
 
-Test suites cover authentication, RBAC (role + object-level), the request lifecycle state machine, comments/photos/ratings, notifications, reports and security headers.
+Test suites cover authentication, RBAC (role + object-level), the request lifecycle state machine, comments/photos/ratings, notifications, reports and security headers. The browser suite additionally verifies responsive mobile navigation, keyboard-only navigation, focus visibility, and that every control on every screen has an accessible name.
 
 ## API surface
 

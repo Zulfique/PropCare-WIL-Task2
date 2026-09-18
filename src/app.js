@@ -25,7 +25,10 @@ const limiter = isTest
   ? (req, res, next) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000,
-      limit: 200,
+      limit: 600,
+      // Only non-2xx responses consume quota, so heavy normal usage and
+      // multi-run browser suites never lock legitimate users out of the demo.
+      skipSuccessfulRequests: true,
       standardHeaders: true,
       legacyHeaders: false,
       message: {
@@ -39,7 +42,10 @@ const authLimiter = isTest
   ? (req, res, next) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000,
-      limit: 20,
+      // Failed login attempts only (see skipSuccessfulRequests): brute force
+      // is still throttled but successful sign-ins never count against a user.
+      limit: 100,
+      skipSuccessfulRequests: true,
       standardHeaders: true,
       legacyHeaders: false,
       message: {

@@ -17,9 +17,10 @@ router.get('/', (req, res) => {
   } else if (req.user.role === 'tenant') {
     rows = q.propertiesForRequests().all(req.user.id);
   } else if (req.user.role === 'technician') {
-    // Technician properties must come from requests assigned to
-    // that technician, not from tenant ownership.
-    rows = q.propertiesForTechnician().all(req.user.id);
+    const technician = q.technicianByUserId().get(req.user.id);
+    rows = technician
+      ? q.propertiesForTechnician().all(technician.id)
+      : [];
   } else {
     rows = [];
   }

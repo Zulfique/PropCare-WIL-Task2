@@ -1,83 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PropCare — Smart Property Maintenance Management</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PropCare — Obs Realty</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+<!-- Fonts (DM Sans body text, Space Grotesk display headings) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+
+<!-- App styles -->
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- ============ LOGIN SCREEN ============ -->
-  <div id="loginScreen" class="login-screen hidden">
-    <div class="login-left">
-      <div class="brand brand-lg">
-        <span class="brand-logo">&#128737;</span>
-        <span class="brand-name">PropCare</span>
-      </div>
-      <p class="login-headline">A better maintenance rhythm.</p>
-      <p class="login-sub">Nothing lost between the next call. PropCare brings residents, property teams and technicians into one calm, auditable workflow.</p>
-      <ul class="login-points">
-        <li>Report issues in under a minute, with photos</li>
-        <li>Track every request from report to resolution</li>
-        <li>One auditable history for the whole portfolio</li>
-      </ul>
-    </div>
-    <div class="login-right">
-      <div class="login-card">
-        <div class="login-portal">HORIZON TEAM PORTAL</div>
-        <h2>Welcome back</h2>
-        <p class="login-card-sub">Sign in to continue to your workspace.</p>
+<div id="root"></div>
 
-        <label class="field-label" for="loginRole">Demo account</label>
-        <select id="loginRole" class="field">
-          <option value="U1" selected>Sarah Williams — Tenant</option>
-          <option value="U2">Michael Jacobs — Property Manager</option>
-          <option value="U9">Johan van der Merwe — Technician</option>
-          <option value="U14">System Admin — Administrator</option>
-        </select>
-
-        <label class="field-label" for="loginEmail">Work email</label>
-        <input class="field" id="loginEmail" type="email" value="sarahwilliams@example.com">
-
-        <label class="field-label" for="loginPassword">Password</label>
-        <input class="field" id="loginPassword" type="password" value="password123" autocomplete="current-password">
-
-        <button type="button" id="loginBtn" class="btn btn-accent btn-block">Sign in to PropCare</button>
-        <button type="button" id="forgotBtn" class="btn-link">Forgot your password?</button>
-        <p class="login-demo-note">Demo environment — no external services connected</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ APP SHELL ============ -->
-  <div id="app" class="hidden">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-logo">&#128737;</span>
-        <span class="brand-name">PropCare</span>
-        <span class="workspace">HORIZON PROPERTY GROUP <span class="ws-ws">WORKSPACE</span></span>
-      </div>
-      <nav class="topnav" id="topNav" aria-label="Primary navigation"></nav>
-      <div class="topbar-user">
-        <span class="avatar" id="userAvatar">sw</span>
-        <span class="user-name" id="userName">Sarah Williams</span>
-        <button type="button" class="btn-link signout" id="signOutBtn">Sign out</button>
-      </div>
-    </header>
-    <div class="breadcrumb" id="breadcrumb"></div>
-    <main class="app-body" id="appBody"></main>
-  </div>
-
-  <nav class="bottom-nav" id="bottomNav" aria-label="Mobile navigation"></nav>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <div id="modalBackdrop" class="modal-backdrop hidden" onclick="App.closeModal()">
-    <div class="modal" onclick="event.stopPropagation()" id="modalBox"></div>
-  </div>
-
-  <script src="data/propcare.js"></script>
-  <script src="js/app.js"></script>
+<!--
+  Load order matters: seed-data.js must run before app.js, since app.js
+  reads `window.PROPCARE_SEED` at startup. Both are plain classic scripts
+  (not ES modules), so this page works when opened directly by double-click
+  (file://) with no local server and no build step required.
+-->
+<script src="data/seed-data.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

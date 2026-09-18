@@ -40,6 +40,9 @@ router.get('/:id', (req, res, next) => {
   if (req.user.role === 'manager' && prop.manager_id !== req.user.id) {
     return next(new AppError('You do not have permission to view this property', 403));
   }
+  if (['tenant', 'technician'].includes(req.user.role)) {
+    return next(new AppError('You do not have permission to view this property', 403));
+  }
   const openCount = q.countByProperty().all().find((p) => p.id === prop.id)?.n || 0;
   res.status(200).json({
     status: 'success',

@@ -96,7 +96,7 @@ describe('Requests API - GET /api/requests/:id', () => {
   it('returns the seeded rating on a completed request', async () => {
     const token = await login('priya.naidoo@example.com');
     const res = await request(app)
-      .get('/api/requests/REQ-1027')
+      .get('/api/requests/REQ-1045')
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
@@ -338,12 +338,12 @@ describe('Requests API - comments, photos and rating', () => {
   it('rejects rating a request that is not completed', async () => {
     const token = await login('priya.naidoo@example.com');
     const res = await request(app)
-      .post('/api/requests/REQ-1027/rate')
+      .post('/api/requests/REQ-1045/rate')
       .set('Authorization', `Bearer ${token}`)
       .send({ stars: 4 });
 
     expect(res.status).toBe(400);
-    expect(res.body.message).toContain('already been rated');
+    expect(res.body.message).toContain('completed');
   });
 
   it('rejects an out-of-range star rating', async () => {

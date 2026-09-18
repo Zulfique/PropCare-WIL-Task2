@@ -1,6 +1,6 @@
 /* PropCare Task 2 — headless browser smoke test.
  * Drives the SPA on http://localhost:8124 through every role, screen
- * and key action using Puppeteer (globally installed, not a project dep).
+  * and key action using Puppeteer (globally installed, not a project dep).
  *
  * Run:  node scripts/browser-test.js
  *       node scripts/browser-test.js --shots-only   # render screens, no asserts
@@ -8,9 +8,13 @@
 const fs = require('fs');
 const path = require('path');
 
-const PUPPETEER_PATH = 'C:/Users/27635/AppData/Roaming/npm/node_modules/puppeteer';
-const CHROME = 'C:/Users/27635/.cache/puppeteer/chrome/win64-150.0.7871.24/chrome-win64/chrome.exe';
-const BASE = process.env.PPC_BASE || 'http://localhost:8124';
+const PUPPETEER_PATH =
+  process.env.PPC_PUPPETEER_PATH ||
+  'C:/Users/27635/AppData/Roaming/npm/node_modules/puppeteer';
+const CHROME =
+  process.env.PPC_CHROME || undefined;
+const BASE =
+  process.env.PPC_BASE || 'http://localhost:8124';
 const SHOTS = path.join(__dirname, '..', 'browser-shots');
 const SHOTS_ONLY = process.argv.indexOf('--shots-only') !== -1;
 
@@ -494,10 +498,17 @@ async function keyboardSuite(browser) {
 
   const puppeteer = require(PUPPETEER_PATH);
   const browser = await puppeteer.launch({
-    executablePath: CHROME,
+    ...(CHROME ? { executablePath: CHROME } : {}),
     headless: 'new',
-    defaultViewport: { width: 1440, height: 900 },
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1440,900']
+    defaultViewport: {
+      width: 1440,
+      height: 900,
+    },
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--window-size=1440,900'
+    ]
   });
 
   let lifecycleId = null;

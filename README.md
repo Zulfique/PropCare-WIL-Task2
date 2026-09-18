@@ -90,7 +90,7 @@ Never commit a real .env file or production secrets.
 Testing
 
 
-Run the complete Jest/Supertest suite:
+Run the automated test suite:
 
 
 npm test
@@ -102,7 +102,7 @@ Run JavaScript syntax checks:
 npm run check
 
 
-Run the browser test:
+Run the browser smoke test:
 
 
 npm run test:browser
@@ -114,7 +114,7 @@ Run the browser test with screenshots:
 npm run test:browser:shots
 
 
-Check the working tree for whitespace errors:
+Check the working tree:
 
 
 git diff --check
@@ -127,7 +127,7 @@ The API base path is:
 /api
 
 
-Health check:
+Health:
 
 
 GET /api/health
@@ -204,7 +204,7 @@ The Render Blueprint is:
 render.yaml
 
 
-The production SQLite database is stored on the persistent Render disk:
+The production SQLite database uses the persistent Render disk:
 
 
 /data/propcare.db
@@ -214,7 +214,7 @@ The Render health check is:
 
 
 /api/health
-Render environment
+Render environment variables
 
 
 Configure these values in Render:
@@ -228,11 +228,11 @@ JWT_SECRET=<long random secret>
 DEMO_PASSWORD=<demo password>
 
 
-Do not commit production secrets.
+Production secrets must not be committed to Git.
 
 
 GitHub Actions
-CI
+Continuous Integration
 
 
 The CI workflow is:
@@ -277,9 +277,9 @@ A push to main:
 
 
 Installs dependencies
-Runs tests
+Runs automated tests
 Runs syntax checks
-Selects the Render deploy hook
+Selects the Render deployment hook
 Triggers Render when a hook is configured
 Waits for the Render health endpoint
 Configure Render deployment
@@ -288,28 +288,19 @@ Configure Render deployment
 Create a Render Deploy Hook for the service.
 
 
-Add it to GitHub as:
+Store the hook in GitHub Actions secrets as:
 
 
 RENDER_DEPLOY_HOOK_URL
 
 
-under:
-
-
-GitHub
-→ Settings
-→ Secrets and variables
-→ Actions
-
-
-The Render workflow also supports supplying hook_url manually through GitHub Actions.
+The workflow also supports supplying hook_url when manually running the workflow.
 
 
 Deployment health
 
 
-The Render service is:
+Render service:
 
 
 https://propcare-wil-task2.onrender.com/
@@ -340,8 +331,8 @@ Project structure
 ├── .env.example
 ├── package.json
 ├── render.yaml
-├── server.js
-└── README.md
+├── README.md
+└── server.js
 Notes
 
 
@@ -351,125 +342,110 @@ SQLite uses Node's built-in node:sqlite module and therefore requires a compatib
 The prototype directory contains the Task 1 deliverable and is kept separate from the Task 2 Express application.
 
 
-Notes
-Brand colours: navy #172336, teal #a7cfce, page background #f2f4f8.
-
-
-data/*.db and .env are git-ignored; the database is rebuilt and seeded automatically when missing.
-
 
 
 ---
 
 
-# 9. `package.json`
+# 3. Fix `scripts/browser-test.js`
 
 
-Update only the `check` script.
+This is still hard-coded to:
 
 
-Change:
+```js
+const PUPPETEER_PATH = 'C:/Users/27635/AppData/Roaming/npm/node_modules/puppeteer';
+const CHROME = 'C:/Users/27635/.cache/puppeteer/.../chrome.exe';
 
 
-```json
-"check": "node --check server.js && node --check src/app.js && node --check src/db.js && node --check src/services/requests.js && node --check public/js/api.js && node --check public/js/app.js"
+That's not portable.
+
+
+At minimum, change the beginning to:
+
+
+const fs = require('fs');
+const path = require('path');
+
+
+const PUPPETEER_PATH =
+  process.env.PPC_PUPPETEER_PATH ||
+  'C:/Users/27635/AppData/Roaming/npm/node_modules/puppeteer';
+
+
+const CHROME =
+  process.env.PPC_CHROME || undefined;
+
+
+const BASE =
+  process.env.PPC_BASE ||
+  'http://localhost:8124';
+
+
+Then change:
+
+
+const browser = await puppeteer.launch({
+  executablePath: CHROME,
+  headless: 'new',
+  defaultViewport: { width: 1440, height: 900 },
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1440,900']
+});
 
 
 to:
 
 
-"check": "node --check server.js && node --check src/app.js && node --check src/db.js && node --check src/middleware/auth.js && node --check src/middleware/errorHandler.js && node --check src/middleware/validate.js && node --check src/routes/auth.js && node --check src/routes/users.js && node --check src/routes/properties.js && node --check src/routes/requests.js && node --check src/routes/technicians.js && node --check src/routes/tenants.js && node --check src/routes/categories.js && node --check src/routes/notifications.js && node --check src/routes/reports.js && node --check public/js/api.js && node --check public/js/app.js"
-
-
-Everything else in package.json can stay unchanged.
-
-
-10. Add tests/properties.test.js
-
-
-This file currently does not exist in the repository.
-
-
-Create:
-
-
-const request = require('supertest');
-const app = require('../src/app');
-
-
-const PASSWORD = 'PropCare123!';
-
-
-async function login(email) {
-  const res = await request(app)
-    .post('/api/auth/login')
-    .send({
-      email,
-      password: PASSWORD,
-    });
-
-
-  expect(res.status).toBe(200);
-
-
-  return res.body.data.token;
-}
-
-
-describe('Property access', () => {
-  it('lists only properties containing jobs assigned to the technician', async () => {
-    const token = await login('johan.vdm@obsrealty.co.za');
-
-
-    const res = await request(app)
-      .get('/api/properties')
-      .set('Authorization', `Bearer ${token}`);
-
-
-    expect(res.status).toBe(200);
-
-
-    const properties = res.body.data.properties;
-    const ids = properties.map((property) => property.id);
-
-
-    // Johan is U9 and technician T1.
-    // Current seed assigns T1 jobs on P1 and P5.
-    expect(new Set(ids)).toEqual(
-      new Set(['P1', 'P5'])
-    );
-  });
-
-
-  it('does not expose unrelated properties to the technician', async () => {
-    const token = await login('johan.vdm@obsrealty.co.za');
-
-
-    const res = await request(app)
-      .get('/api/properties')
-      .set('Authorization', `Bearer ${token}`);
-
-
-    expect(res.status).toBe(200);
-
-
-    const ids = res.body.data.properties.map(
-      (property) => property.id
-    );
-
-
-    expect(ids).not.toContain('P3');
-    expect(ids).not.toContain('P7');
-    expect(ids).not.toContain('P8');
-    expect(ids).not.toContain('P9');
-  });
+const browser = await puppeteer.launch({
+  ...(CHROME ? { executablePath: CHROME } : {}),
+  headless: 'new',
+  defaultViewport: {
+    width: 1440,
+    height: 900,
+  },
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--window-size=1440,900',
+  ],
 });
+Important
 
 
-11. Add the existing-token deactivation test
+Your repository currently says Puppeteer is a global installation rather than a project dependency.
 
 
-In tests/rbac.test.js, add this test inside the deactivation tests:
+That is fragile.
+
+
+A better fix is to add Puppeteer to devDependencies:
+
+
+"puppeteer": "^24.20.0"
+
+
+Then:
+
+
+const puppeteer = require('puppeteer');
+
+
+instead of:
+
+
+const puppeteer = require(PUPPETEER_PATH);
+
+
+That makes the browser test reproducible in GitHub Actions and on another Windows machine.
+
+
+4. Add the missing deactivation regression test
+
+
+Your current tests/rbac.test.js has the deactivation login test, but it doesn't test an already-issued JWT.
+
+
+Add this:
 
 
 it('rejects an existing token after the account is deactivated', async () => {
@@ -519,201 +495,20 @@ it('rejects an existing token after the account is deactivated', async () => {
 });
 
 
-12. Browser test
+Your newly updated auth.js should then pass this test because it now executes:
 
 
-I don't recommend replacing your huge scripts/browser-test.js just for this.
+const user = q.userByIdFull().get(decoded.id);
 
 
-At the top of the file, make sure you have:
+and subsequently checks:
 
 
-const CHROME = process.env.PPC_CHROME || undefined;
+if (!user.active) {
+```
 
-
-Then change the Puppeteer launch section to:
-
-
-const browser = await puppeteer.launch({
-  ...(CHROME ? { executablePath: CHROME } : {}),
-  headless: 'new',
-  defaultViewport: {
-    width: 1440,
-    height: 900,
-  },
-  args: [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--window-size=1440,900',
-  ],
-});
-
-
-This removes dependency on a hard-coded Windows user's Chrome/Puppeteer cache.
-
-
-13. Reports
-
-
-Your current src/routes/reports.js is already using scoped rows for byStatus.
-
-
-Do not replace it again.
-
-
-The important current implementation is:
-
-
-const statusMap = new Map();
-
-
-scopeRows.forEach((r) => {
-  stats.total += 1;
-
-
-  if (OPEN_STATUSES.includes(r.status)) {
-    stats.open += 1;
-  } else if (RESOLVED_STATUSES.includes(r.status)) {
-    stats.resolved += 1;
-  }
-
-
-  statusMap.set(
-    r.status,
-    (statusMap.get(r.status) || 0) + 1
-  );
-
-
-stats.byStatus = Array.from(statusMap.entries())
-  .map(([status, count]) => ({
-    status,
-    count,
-  }))
-  .sort((a, b) => b.count - a.count);
-
-
-That fix is already in the repository.
-
-
-14. Request service
-
-
-The important tenant-property fix is also already present.
-
-
-Keep:
-
-
-const units = q.unitsForUser().all(tenant.id);
-
-
-const selectedUnit = units.find(
-  (u) => u.name === body.unit
-);
-
-
-if (!selectedUnit) {
-  throw new AppError(
-    'You can only submit a request for one of your assigned units.',
-    400
-  );
-}
-
-
-const propertyId = selectedUnit.property_id;
-
-
-Do not restore the old:
-
-
-units.length
-  ? units[0].property_id
-  : 'P1'
-
-
-fallback.
-
-
-15. Verification
-
-
-After making the changes, from the repository root run:
-
-
-npm ci
-
-
-Then:
-
-
-npm test
-
-
-Then:
-
-
-npm run check
-
-
-Then:
-
-
-git diff --check
-
-
-Then:
-
-
-node --check src/routes/properties.js
-node --check src/middleware/auth.js
-node --check src/middleware/validate.js
-node --check tests/properties.test.js
-node --check tests/rbac.test.js
-
-
-Finally:
-
-
-npm run test:browser
-16. Review the actual changes
-
-
-Use:
-
-
-git diff -- src/routes/properties.js
-git diff -- src/middleware/auth.js
-git diff -- src/middleware/validate.js
-git diff -- src/app.js
-git diff -- render.yaml
-git diff -- .env.example
-git diff -- README.md
-git diff -- package.json
-git diff -- scripts/browser-test.js
-git diff -- tests/properties.test.js
-git diff -- tests/rbac.test.js
-
-
-Then:
-
-
-git status
-17. Commit
-
-
-If all tests pass:
-
-
-git add src/routes/properties.js src/middleware/auth.js src/middleware/validate.js src/app.js render.yaml .env.example README.md package.json scripts/browser-test.js tests/properties.test.js tests/rbac.test.js
-
-
-Then:
-
-
-git commit -m "fix: harden authentication and project configuration"
-
-
-Then:
-
-
-git push origin main
+Now let me write the browser-test.js file. First let me check if it exists:Now let me check the browser-test.js file:
+<tool_call>
+<function=bash>
+<parameter=command>
+ls "C:\Users\27635\Downloads\Video Idea\PropCare-WIL-Task2\scripts\browser-test.js" 2>/dev/null && echo "exists" || echo "not found"

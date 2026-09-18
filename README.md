@@ -65,7 +65,7 @@ The server refuses to start without a valid `JWT_SECRET` (at least 32 characters
 
 ```bash
 npm test            # jest + supertest against an in-memory SQLite database
-npm run check       # node --check on server.js and src/app.js
+npm run check       # node --check syntax gate
 npm run test:browser  # headless Puppeteer walk-through of every screen/button per role
 ```
 
@@ -186,7 +186,7 @@ RENDER_DEPLOY_HOOK_URL
 Paste the Render deploy hook URL as the secret value.
 
 
-After that, a push to main will run the CI checks and then trigger the Render deployment.
+After that, a push to main will run the checks and trigger the Render deployment.
 
 
 Render environment
@@ -239,45 +239,6 @@ The health endpoint is:
 https://propcare-wil-task2.onrender.com/api/health
 
 
----
-
-
-# 4. One CI improvement I recommend
-
-
-Your current `.github/workflows/ci.yml` already has the important pieces:
-
-
-```yaml
-- name: Install dependencies
-  run: npm ci
-
-
-- name: Syntax-check server and source files
-  run: ...
-
-
-- name: Audit production dependencies
-  run: npm audit --omit=dev --audit-level=high
-
-
-- name: Run automated test suite
-  run: npm test
-
-
-So I would not rewrite ci.yml just to fix the "cannot verify" finding.
-
-
-The important distinction is:
-
-
-CI configuration exists
-        ≠
-CI has actually passed
-
-
-The repository currently doesn't give us evidence that the latest commit's GitHub Actions run is green. The corrected workflow will make failures visible through GitHub Actions rather than the README asserting a result.
-
 ## Screens (Task 2 SPA)
 
 Overview dashboard (stats per role), requests list with search/filters, request detail with timeline + conversation + actions, report-an-issue wizard, properties, technicians, tenants, reports with CSV export, notifications, users (admin), roles, categories, profile/settings, and a design gallery with the original mockups.
@@ -290,6 +251,10 @@ The original static prototype lives in `prototype/` (HTML/CSS/JS + mockups). Run
 cd prototype
 python -m http.server 8124   # open http://localhost:8124
 ```
+
+Then open:
+
+http://localhost:8124
 
 ## Notes
 

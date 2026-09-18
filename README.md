@@ -100,7 +100,7 @@ The app is designed to run on **Render** (free tier) with a persistent SQLite di
 - `.github/workflows/deploy.yml` — triggers a Render deploy on every push to `main` via the `RENDER_DEPLOY_HOOK_URL` repository secret.
 - Set `JWT_SECRET` (≥ 32 chars) in the Render environment, not in code.
 
-The **Task 1 prototype** remains hosted on **GitHub Pages** via `.github/workflows/build.yml`.
+The **Task 1 prototype** remains hosted on **GitHub Pages** at [zulfique.github.io/PropCare-WIL-Task1](https://zulfique.github.io/PropCare-WIL-Task1/) via `.github/workflows/build.yml`.
 
 ## Branching & CI (Task 2 rubric)
 

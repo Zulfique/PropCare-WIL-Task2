@@ -97,9 +97,23 @@ tests/                  # jest + supertest suites (auth, requests, rbac, reports
 
 The app is designed to run on **Render** (free tier) with a persistent SQLite disk and an automatic deploy hook:
 
-- `render.yaml` — Render Blueprint (Web Service + persistent `/data` disk). `DB_PATH=/data/propcare.db` keeps the database across deploys.
-- `.github/workflows/deploy.yml` — triggers a Render deploy on every push to `main` via the `RENDER_DEPLOY_HOOK_URL` repository secret.
+- `render.yaml` — Render Blueprint (Web Service + persistent `/data` disk, Node 22). `DB_PATH=/data/propcare.db` keeps the database across deploys. `JWT_SECRET` is a required env var (`sync: false` — set it in the dashboard).
+- `.github/workflows/deploy.yml` — deploys on every push to `main` and verifies `/api/health` goes live. It accepts the hook from either:
+  - the `RENDER_DEPLOY_HOOK_URL` repository secret (fully automatic), or
+  - the `hook_url` input on a manual **Actions → CD - Deploy to Render → Run workflow** (no secret stored).
 - Set `JWT_SECRET` (≥ 32 chars) in the Render environment, not in code.
+
+**To go live in ~3 minutes:**
+
+1. Sign up at [render.com](https://render.com) (free tier, no card required).
+2. **New + → Blueprint** → pick `Zulfique/PropCare-WIL-Task2` → Render reads `render.yaml` and creates the service + disk.
+3. In the new web service's **Environment**, click *Add Environment Variable* → `JWT_SECRET` → paste a value from `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+4. Copy the **Deploy Hook URL** from *Settings → Deploy Hook*, then either:
+   - run `gh secret set RENDER_DEPLOY_HOOK_URL` and paste it (permanent auto-deploy), or
+   - trigger the workflow manually from the Actions tab and paste it into the `hook_url` input.
+5. The deploy job polls the service until healthy, then the app is live at `https://propcare-wil-task2.onrender.com/` (health check: `/api/health`).
+
+> Free-tier caveat: Render spins the app down after ~15 min idle; the first page load after a cold start takes a few seconds.
 
 The **Task 1 prototype** remains hosted on **GitHub Pages** at [zulfique.github.io/PropCare-WIL-Task1](https://zulfique.github.io/PropCare-WIL-Task1/) via `.github/workflows/build.yml`.
 

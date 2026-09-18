@@ -306,8 +306,11 @@ function createRequest(tenant, body) {
   const units = q.unitsForUser().all(tenant.id);
   // Derive property_id from the unit the tenant submitted, rather than always
   // defaulting to the first unit in the tenant's unit list.
-  const selectedUnit = units.find((u) => u.name === body.unit || u.name.includes(body.unit));
-  const propertyId = selectedUnit ? selectedUnit.property_id : (units.length ? units[0].property_id : 'P1');
+  const selectedUnit = units.find((u) => u.name === body.unit);
+  if (!selectedUnit) {
+    throw new AppError('You can only submit a request for one of your assigned units.', 400);
+  }
+  const propertyId = selectedUnit.property_id;
 
   q.insertRequest().run(
     id,

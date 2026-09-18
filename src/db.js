@@ -156,7 +156,12 @@ async function seedDatabase() {
   if (row.n > 0) return;
 
   const bcrypt = require('bcryptjs');
-  const demoPassword = process.env.DEMO_PASSWORD || 'PropCare123!';
+  const demoPassword = process.env.DEMO_PASSWORD;
+  if (!demoPassword) {
+    throw new Error(
+      'DEMO_PASSWORD environment variable is not set. Please configure it in your .env file or Render dashboard.'
+    );
+  }
   const passwordHash = await bcrypt.hash(demoPassword, 10);
 
   const insertUser = db.prepare(
@@ -329,7 +334,7 @@ async function seedDatabase() {
   insertRating.run('REQ-1027', 'U5', 5, '2026-08-10 11:00');
 
   console.log(`[propcare] seeded database with ${users.length} users, ${properties.length} properties and ${requests.length} requests.`);
-  console.log(`[propcare] demo password for all accounts: ${demoPassword}`);
+  console.log(`[propcare] demo password for all accounts: ${process.env.DEMO_PASSWORD || 'not configured'}`);
 }
 
 /* ------------------------------------------------------------------ */

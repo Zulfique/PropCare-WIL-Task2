@@ -71,26 +71,21 @@ npm run test:browser  # headless Puppeteer walk-through of every screen/button p
 
 Test suites cover authentication, RBAC (role + object-level), the request lifecycle state machine, comments/photos/ratings, notifications, reports and security headers. The browser suite additionally verifies responsive mobile navigation, keyboard-only navigation, focus visibility, and that every control on every screen has an accessible name.
 
-## Verification results (Task 2, as of the final release commit)
+## Verification
 
-| Suite | Scope | Result |
+Verification should be based on the actual GitHub Actions run for the commit being reviewed.
+
+| Check | Command / workflow | Result |
 | --- | --- | --- |
-| `npm test` | 4 Jest + supertest API suites (auth, lifecycle, RBAC, reports) | **82 / 82 pass** |
-| `npm run test:browser` | Headless browser walk-through of every screen, button and function for all 4 roles + mobile + accessibility | **70 / 70 pass** |
-| `npm run check` | `node --check` syntax gate | pass |
-| `html-validate` | `public/index.html` + `prototype/*.html` | pass |
-| GitHub Actions | `CI - Lint, Build and Test` on `develop` and `main` | green |
+| Automated tests | `npm test` | Reported by GitHub Actions |
+| Syntax checks | `npm run check` | Reported by GitHub Actions |
+| Dependency audit | `npm audit --omit=dev --audit-level=high` | Reported by GitHub Actions |
+| HTML validation | `html-validate` | Reported by GitHub Actions |
+| CI | `.github/workflows/ci.yml` | Reported by GitHub Actions |
+| Render deployment | `.github/workflows/deploy.yml` | Reported by GitHub Actions |
+| Render health | `/api/health` | Checked after deployment |
 
-The browser suite drives the app end-to-end: login per role, report wizard (photo attach + submit), comment, manager assign, tech complete route, user/rating/close lifecycle, CSV export, admin user/category/settings changes, 390px mobile navigation, and keyboard-only operation — producing `browser-shots/` (role-organised full-page screenshots) and `browser-shots/summary.txt` as evidence.
-
-**Demo accounts** (password `PropCare123!`):
-
-| Role | Email | Signs in as |
-| --- | --- | --- |
-| Tenant | `sarahwilliams@example.com` | Sarah Williams |
-| Manager | `michael.jacobs@obsrealty.co.za` | Michael Jacobs |
-| Technician | `johan.vdm@obsrealty.co.za` | Johan van der Merwe |
-| Administrator | `admin@obsrealty.co.za` | System Admin |
+Do not treat the results in this README as a substitute for the actual GitHub Actions run. The GitHub Actions result for the specific commit is the source of truth.
 
 ## API surface
 
@@ -129,34 +124,159 @@ tests/                  # jest + supertest suites (auth, requests, rbac, reports
 
 ## Hosting
 
-The app is designed to run on **Render** (free tier) with a persistent SQLite disk and an automatic deploy hook:
+The app is designed to run on **Render** with a persistent SQLite disk.
 
-- `render.yaml` — Render Blueprint (Web Service + persistent `/data` disk, Node 22). `DB_PATH=/data/propcare.db` keeps the database across deploys. `JWT_SECRET` is a required env var (`sync: false` — set it in the dashboard).
-- `.github/workflows/deploy.yml` — deploys on every push to `main` and verifies `/api/health` goes live. It accepts the hook from either:
-  - the `RENDER_DEPLOY_HOOK_URL` repository secret (fully automatic), or
-  - the `hook_url` input on a manual **Actions → CD - Deploy to Render → Run workflow** (no secret stored).
-- Set `JWT_SECRET` (≥ 32 chars) in the Render environment, not in code.
+### Render configuration
 
-**To go live in ~3 minutes:**
+- `render.yaml` — Render Blueprint for the web service.
+- SQLite database is stored at `/data/propcare.db`.
+- `DB_PATH=/data/propcare.db` keeps the database on the persistent disk.
+- `JWT_SECRET` must be configured in the Render environment.
+- Render uses `/api/health` as the service health check.
 
-1. Sign up at [render.com](https://render.com) (free tier, no card required).
-2. **New + → Blueprint** → pick `Zulfique/PropCare-WIL-Task2` → Render reads `render.yaml` and creates the service + disk.
-3. In the new web service's **Environment**, click *Add Environment Variable* → `JWT_SECRET` → paste a value from `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
-4. Copy the **Deploy Hook URL** from *Settings → Deploy Hook*, then either:
-   - run `gh secret set RENDER_DEPLOY_HOOK_URL` and paste it (permanent auto-deploy), or
-   - trigger the workflow manually from the Actions tab and paste it into the `hook_url` input.
-5. The deploy job polls the service until healthy, then the app is live at `https://propcare-wil-task2.onrender.com/` (health check: `/api/health`).
+### GitHub Actions deployment
 
-> Free-tier caveat: Render spins the app down after ~15 min idle; the first page load after a cold start takes a few seconds.
+The deployment workflow is:
 
-The **Task 1 prototype** remains hosted on **GitHub Pages** at [zulfique.github.io/PropCare-WIL-Task2](https://zulfique.github.io/PropCare-WIL-Task2/) via `.github/workflows/build.yml`.
+```text
+.github/workflows/deploy.yml
 
-## Branching & CI (Task 2 rubric)
 
-- `main` — releasable; merges only from `develop` (or reviewed PRs).
-- `develop` — integration branch for all feature work.
-- `feature/*` — short-lived branches (`backend-api`, `frontend-app`, `tests-pipeline`, `hosting-docs`).
-- `.github/workflows/ci.yml` — installs deps, syntax-checks all JS, audits dependencies and runs the full test suite on `main`/`develop` and PRs.
+It runs when:
+
+
+code is pushed to main, or
+the workflow is manually started from GitHub Actions.
+
+
+Before deployment, GitHub Actions runs:
+
+
+npm ci
+npm test
+npm run check
+
+
+A Render deployment is then triggered using either:
+
+
+the RENDER_DEPLOY_HOOK_URL GitHub repository secret, or
+the optional hook_url input when manually running the workflow.
+
+
+After triggering Render, the workflow polls:
+
+
+https://propcare-wil-task2.onrender.com/api/health
+
+
+until the service becomes healthy.
+
+
+If the Render deploy hook is not configured, the test and syntax-check stages still run, but the Render deployment is skipped with a warning.
+
+
+Configure the Render deploy hook
+Open the Render service.
+Open Settings → Deploy Hook.
+Copy the Render deploy hook URL.
+In GitHub open Settings → Secrets and variables → Actions.
+Create this repository secret:
+RENDER_DEPLOY_HOOK_URL
+Paste the Render deploy hook URL as the secret value.
+
+
+After that, a push to main will run the CI checks and then trigger the Render deployment.
+
+
+Render environment
+
+Set the following environment variables in Render:
+
+
+JWT_SECRET=<long random secret, at least 32 characters>
+NODE_ENV=production
+PORT=10000
+JWT_EXPIRES_IN=2h
+DB_PATH=/data/propcare.db
+DEMO_PASSWORD=PropCare123!
+
+
+Do not commit JWT_SECRET to the repository.
+
+
+Manual deployment
+
+The deployment workflow can also be started manually from:
+
+
+GitHub → Actions → CD - Deploy to Render → Run workflow
+
+
+You may provide the Render deploy hook URL through the hook_url input instead of storing it as a repository secret.
+
+
+Deployment health
+
+A successful deployment requires the Render health endpoint to respond successfully:
+
+
+GET /api/health
+
+
+The GitHub Actions deployment workflow waits for this endpoint after triggering Render.
+
+
+The Render service URL is:
+
+
+https://propcare-wil-task2.onrender.com/
+
+
+The health endpoint is:
+
+
+https://propcare-wil-task2.onrender.com/api/health
+
+
+---
+
+
+# 4. One CI improvement I recommend
+
+
+Your current `.github/workflows/ci.yml` already has the important pieces:
+
+
+```yaml
+- name: Install dependencies
+  run: npm ci
+
+
+- name: Syntax-check server and source files
+  run: ...
+
+
+- name: Audit production dependencies
+  run: npm audit --omit=dev --audit-level=high
+
+
+- name: Run automated test suite
+  run: npm test
+
+
+So I would not rewrite ci.yml just to fix the "cannot verify" finding.
+
+
+The important distinction is:
+
+
+CI configuration exists
+        ≠
+CI has actually passed
+
+
+The repository currently doesn't give us evidence that the latest commit's GitHub Actions run is green. The corrected workflow will make failures visible through GitHub Actions rather than the README asserting a result.
 
 ## Screens (Task 2 SPA)
 

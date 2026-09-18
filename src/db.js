@@ -368,6 +368,13 @@ const q = {
     JOIN requests r ON r.property_id = p.id
     WHERE r.tenant_id = ? ORDER BY p.name
   `),
+  propertiesForTechnician: () => db.prepare(`
+    SELECT DISTINCT p.*, u.name AS manager_name
+    FROM properties p
+    JOIN users u ON u.id = p.manager_id
+    JOIN requests r ON r.property_id = p.id
+    WHERE r.tech_id = ? ORDER BY p.name
+  `),
   propertyById: () => db.prepare(`
     SELECT p.*, u.name AS manager_name FROM properties p
     JOIN users u ON u.id = p.manager_id WHERE p.id = ?

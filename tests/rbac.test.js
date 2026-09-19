@@ -3,10 +3,10 @@ const app = require('../src/app');
 
 const PASSWORD = 'PropCare123!';
 
-async function login(email) {
+async function login(email, password = PASSWORD) {
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email, password: PASSWORD });
+    .send({ email, password });
   return res.body.data.token;
 }
 
@@ -304,6 +304,49 @@ describe('RBAC - admin deactivation', () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'temp.user@example.com', password: 'TempPass1!' });
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('deactivated');
+  });
+
+  it('rejects an existing token after the account is deactivated', async () => {
+    const adminToken = await login('admin@obsrealty.co.za');
+
+    const email = `existing-token-${Date.now()}@example.com`;
+
+    const created = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Existing Token User',
+        email,
+        password: 'ExistingPass1!',
+        role: 'tenant',
+      });
+
+    expect(created.status).toBe(201);
+
+    const userId = created.body.data.user.id;
+
+    // Obtain a valid JWT while the account is active.
+    const userToken = await login(email, 'ExistingPass1!');
+
+    expect(userToken).toBeTruthy();
+
+    // Deactivate the account after the JWT has already been issued.
+    const deactivate = await request(app)
+      .put(`/api/users/${userId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        active: false,
+      });
+
+    expect(deactivate.status).toBe(200);
+
+    // The previously issued JWT must no longer grant access.
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${userToken}`);
+
     expect(res.status).toBe(403);
     expect(res.body.message).toContain('deactivated');
   });

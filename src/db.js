@@ -328,8 +328,12 @@ async function seedDatabase() {
 
   insertRating.run('REQ-1027', 'U5', 5, '2026-08-10 11:00');
 
-  console.log(`[propcare] seeded database with ${users.length} users, ${properties.length} properties and ${requests.length} requests.`);
-  console.log(`[propcare] demo password for all accounts: ${demoPassword}`);
+  console.log(
+    `[propcare] seeded database with ${users.length} users, ` +
+    `${properties.length} properties and ${requests.length} requests.`
+  );
+
+  console.log('[propcare] demo account credentials configured.');
 }
 
 /* ------------------------------------------------------------------ */

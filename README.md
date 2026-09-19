@@ -1,110 +1,67 @@
-## Hosting
+# PropCare — Smart Property Maintenance Management
 
-The app is designed to run on **Render** with a persistent SQLite disk.
+PropCare is a full-stack property maintenance management platform for Obs Realty Group. It includes the Task 2 Express/SQLite application with a JWT-secured REST API and vanilla JavaScript front end, plus the original Task 1 prototype.
 
-### Render configuration
+## Quick links
 
-- `render.yaml` — Render Blueprint for the web service.
-- SQLite database is stored at `/data/propcare.db`.
-- `DB_PATH=/data/propcare.db` keeps the database on the persistent disk.
-- `JWT_SECRET` must be configured in the Render environment.
-- Render uses `/api/health` as the service health check.
+| Resource | URL |
+| --- | --- |
+| Repository | <https://github.com/Zulfique/PropCare-WIL-Task2> |
+| Local application | <http://localhost:8124> |
+| API health check | <http://localhost:8124/api/health> |
+| Task 1 prototype | <https://zulfique.github.io/PropCare-WIL-Task2/prototype/> |
+| Render deployment | <https://propcare-wil-task2.onrender.com/> |
 
-### GitHub Actions deployment
+## Features
 
-The deployment workflow is:
+- Residents report maintenance issues with categories, urgency, details, and photos.
+- Property managers review requests, manage priorities, and assign technicians.
+- Technicians accept jobs, update progress, and complete work.
+- Requests retain status history, comments, notifications, and ratings.
+- Administrators manage users, roles, categories, and reports.
+- Responsive SPA with mobile navigation and keyboard-accessible controls.
 
+## Technology
 
-code is pushed to main, or
-the workflow is manually started from GitHub Actions.
+- Node.js 22.5 or newer
+- Express
+- SQLite using Node's built-in `node:sqlite`
+- JWT authentication
+- bcrypt password hashing
+- Role-based and object-level authorization
+- Helmet security headers
+- CORS allow-listing
+- Rate limiting
+- Express-validator
+- Vanilla JavaScript front end
+- Jest and Supertest
+- Puppeteer browser tests
+- GitHub Actions and Render deployment
 
+## Demo accounts
 
-Before deployment, GitHub Actions runs:
+Seeded accounts use `PropCare123!` unless `DEMO_PASSWORD` is configured.
 
+| Role | Email |
+| --- | --- |
+| Tenant | `sarahwilliams@example.com` |
+| Property manager | `michael.jacobs@obsrealty.co.za` |
+| Technician | `johan.vdm@obsrealty.co.za` |
+| Administrator | `admin@obsrealty.co.za` |
 
+Do not use demo credentials in production.
+
+## Local development
+
+### Requirements
+
+- Node.js 22.5 or newer
+- npm
+
+Node 22 is required because the application uses Node's built-in `node:sqlite` module.
+
+### Install
+
+```bash
 npm ci
-npm test
-npm run check
-
-
-A Render deployment is then triggered using either:
-
-
-the RENDER_DEPLOY_HOOK_URL GitHub repository secret, or
-the optional hook_url input when manually running the workflow.
-
-
-After triggering Render, the workflow polls:
-
-
-https://propcare-wil-task2.onrender.com/api/health
-
-
-until the service becomes healthy.
-
-
-If the Render deploy hook is not configured, the test and syntax-check stages still run, but the Render deployment is skipped with a warning.
-
-
-Configure the Render deploy hook
-
-Open the Render service.
-Open Settings → Deploy Hook.
-Copy the Render deploy hook URL.
-In GitHub open Settings → Secrets and variables → Actions.
-Create this repository secret:
-RENDER_DEPLOY_HOOK_URL
-Paste the Render deploy hook URL as the secret value.
-
-
-After that, a push to main will run the checks and trigger the Render deployment.
-
-
-Render environment
-
-Set the following environment variables in Render:
-
-
-JWT_SECRET=<long random secret, at least 32 characters>
-NODE_ENV=production
-PORT=10000
-JWT_EXPIRES_IN=2h
-DB_PATH=/data/propcare.db
-DEMO_PASSWORD=PropCare123!
-
-
-Do not commit JWT_SECRET to the repository.
-
-
-Manual deployment
-
-The deployment workflow can also be started manually from:
-
-
-GitHub → Actions → CD - Deploy to Render → Run workflow
-
-
-You may provide the Render deploy hook URL through the hook_url input instead of storing it as a repository secret.
-
-
-Deployment health
-
-A successful deployment requires the Render health endpoint to respond successfully:
-
-
-GET /api/health
-
-
-The GitHub Actions deployment workflow waits for this endpoint after triggering Render.
-
-
-The Render service URL is:
-
-
-https://propcare-wil-task2.onrender.com/
-
-
-The health endpoint is:
-
-
-https://propcare-wil-task2.onrender.com/api/health
+```

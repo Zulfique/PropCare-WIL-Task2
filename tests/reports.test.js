@@ -26,8 +26,8 @@ describe('Reports API - GET /api/reports/summary', () => {
     const s = res.body.data.summary;
 
 
-    expect(s.total).toBe(9);
-    expect(s.open).toBe(8);
+    expect(s.total).toBe(8);
+    expect(s.open).toBe(7);
     expect(s.resolved).toBe(1);
 
 

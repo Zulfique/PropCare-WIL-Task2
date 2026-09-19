@@ -65,3 +65,29 @@ Node 22 is required because the application uses Node's built-in `node:sqlite` m
 ```bash
 npm ci
 ```
+
+## Security audit
+
+### Production dependencies
+
+No known vulnerabilities in production dependencies.
+
+### Development dependencies
+
+One audit warning remains through Puppeteer's browser-download tooling:
+
+```
+puppeteer
+└── @puppeteer/browsers
+    └── extract-zip
+```
+
+This affects only the browser-test tooling, not the production runtime. NPM's automatic fix would downgrade Puppeteer to 19.8.0 using a breaking change, which would break the current test suite. The warning is acceptable for dev-only use.
+
+### Credential logging
+
+The application no longer logs `DEMO_PASSWORD` at startup. The seed message now reads:
+
+```
+[propcare] demo account credentials configured.
+```

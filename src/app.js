@@ -30,9 +30,6 @@ const limiter = isTest
   : rateLimit({
       windowMs: 15 * 60 * 1000,
       limit: 600,
-      // Only non-2xx responses consume quota, so heavy normal usage and
-      // multi-run browser suites never lock legitimate users out of the demo.
-      skipSuccessfulRequests: true,
       standardHeaders: true,
       legacyHeaders: false,
       message: {

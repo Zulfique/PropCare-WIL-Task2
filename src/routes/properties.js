@@ -7,6 +7,22 @@ const router = express.Router();
 
 router.use(authenticate);
 
+/** Role-scoped property ids the user is actually involved with via requests. */
+function accessiblePropertyIds(user) {
+  if (user.role === 'tenant') return q.propertiesForRequests().all(user.id).map((p) => p.id);
+  if (user.role === 'technician') return q.propertiesForTechnician().all(user.id).map((p) => p.id);
+  return [];
+}
+
+/** Open request count for a property, scoped to the user for managers. */
+function openCountFor(prop, user) {
+  const rows =
+    user.role === 'manager'
+      ? q.countOpenByPropertyForManager().all(user.id)
+      : q.countOpenByProperty().all();
+  return rows.find((p) => p.id === prop.id)?.n || 0;
+}
+
 // GET /api/properties - role-scoped list
 router.get('/', (req, res) => {
   let rows;
@@ -40,13 +56,18 @@ router.get('/:id', (req, res, next) => {
   if (!prop) {
     return next(new AppError('Property not found', 404));
   }
-  if (req.user.role === 'manager' && prop.manager_id !== req.user.id) {
-    return next(new AppError('You do not have permission to view this property', 403));
+  if (req.user.role === 'admin') {
+    // admin sees every property
+  } else if (req.user.role === 'manager') {
+    if (prop.manager_id !== req.user.id) {
+      return next(new AppError('You do not have permission to view this property', 403));
+    }
+  } else {
+    // tenants and technicians can view properties they have requests on
+    if (accessiblePropertyIds(req.user).indexOf(prop.id) === -1) {
+      return next(new AppError('You do not have permission to view this property', 403));
+    }
   }
-  if (['tenant', 'technician'].includes(req.user.role)) {
-    return next(new AppError('You do not have permission to view this property', 403));
-  }
-  const openCount = q.countByProperty().all().find((p) => p.id === prop.id)?.n || 0;
   res.status(200).json({
     status: 'success',
     data: {
@@ -57,7 +78,7 @@ router.get('/:id', (req, res, next) => {
         area: prop.area,
         managerId: prop.manager_id,
         managerName: prop.manager_name,
-        openRequests: openCount,
+        openRequests: openCountFor(prop, req.user),
       },
     },
   });

@@ -174,7 +174,13 @@ const updateProfileValidation = [
   body('password')
     .optional()
     .isLength({ min: 8 })
-    .withMessage('New password must be at least 8 characters long'),
+    .withMessage('New password must be at least 8 characters long')
+    .matches(/[A-Z]/)
+    .withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/)
+    .withMessage('Password must contain at least one lowercase letter')
+    .matches(/\d/)
+    .withMessage('Password must contain at least one number'),
   handleValidationErrors,
 ];
 

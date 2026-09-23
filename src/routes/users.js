@@ -1,5 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('node:crypto');
 const { authenticate, authorize } = require('../middleware/auth');
 const {
   registerUserValidation,
@@ -33,7 +34,8 @@ router.post('/', authorize('admin'), registerUserValidation, async (req, res, ne
     if (existing) {
       return next(new AppError('A user with this email already exists', 409));
     }
-    const id = `U${100 + (q.allUsers().all().length + 1)}`;
+    // UUID keeps ids unique regardless of deletions or reordering.
+    const id = `U${crypto.randomUUID().replace(/-/g, '')}`;
     const hash = await bcrypt.hash(password, 10);
     db.prepare(
       'INSERT INTO users (id, name, email, password_hash, role, active, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)'

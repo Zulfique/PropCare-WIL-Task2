@@ -2,11 +2,6 @@ const { db, q, OPEN_STATUSES } = require('../db');
 const { AppError } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 
-function nowStamp() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10) + ' ' + d.toTimeString().slice(0, 5);
-}
-
 function listForUser(user) {
   if (user.role === 'admin') return q.requestAll().all();
   if (user.role === 'tenant') return q.requestByTenant().all(user.id);
@@ -176,9 +171,9 @@ function applyStatusAction(user, id, action, text) {
     default: break;
   }
 
-  const when = nowStamp();
+  const when = new Date().toISOString();
   const note = text || ACTION_NOTE[action] || 'Status updated.';
-  q.updateRequestStatus().run(nextStatus, when.slice(0, 10), id);
+  q.updateRequestStatus().run(nextStatus, when, id);
   q.insertHistory().run(id, statusLabel(nextStatus), when);
   q.insertComment().run(id, user.id, user.name, roleLabel(user.role), note, when);
 
@@ -190,7 +185,7 @@ function applyStatusAction(user, id, action, text) {
 }
 
 function notifyForRequest(row, actor, action, requestId) {
-  const stamp = nowStamp();
+  const stamp = new Date().toISOString();
   const tenantName = row.tenant_name;
   if (action === 'confirm' || action === 'approve' || action === 'cancel') {
     q.insertNotification().run(row.tenant_id, '\u2705', `Request ${requestId} was ${action}ed by ${actor.name}.`, stamp);
@@ -231,8 +226,8 @@ function assignRequest(manager, id, technicianId, urgency, note) {
     throw new AppError('Technician not found.', 404);
   }
 
-  const when = nowStamp();
-  q.updateRequestAssign().run(technicianId, urgency, 'assigned', when.slice(0, 10), id);
+  const when = new Date().toISOString();
+  q.updateRequestAssign().run(technicianId, urgency, 'assigned', when, id);
   q.insertHistory().run(id, statusLabel('assigned'), when);
   const noteText = note || `Assigned to ${tech.name}.`;
   q.insertComment().run(id, manager.id, manager.name, roleLabel('manager'), noteText, when);
@@ -260,7 +255,7 @@ function rateRequest(tenant, id, stars) {
   if (existing) {
     throw new AppError('This request has already been rated.', 400);
   }
-  const when = nowStamp();
+  const when = new Date().toISOString();
   q.insertRating().run(id, tenant.id, stars, when);
   q.insertComment().run(id, tenant.id, tenant.name, roleLabel('tenant'),
     `Tenant rated the completed work ${stars} out of 5.`, when);
@@ -280,7 +275,7 @@ function commentOnRequest(user, id, text) {
   if (!canView(user, row)) {
     throw new AppError('You do not have permission to comment on this request.', 403);
   }
-  const when = nowStamp();
+  const when = new Date().toISOString();
   q.insertComment().run(id, user.id, user.name, roleLabel(user.role), text, when);
   return getDetail(user, id);
 }
@@ -293,7 +288,7 @@ function addPhoto(user, id) {
   if (!canView(user, row)) {
     throw new AppError('You do not have permission to update this request.', 403);
   }
-  q.incrementPhotos().run(nowStamp().slice(0, 10), id);
+  q.incrementPhotos().run(new Date().toISOString(), id);
   return getDetail(user, id);
 }
 
@@ -301,7 +296,7 @@ function createRequest(tenant, body) {
   const row = q.nextReqNumber().get();
   const nextNum = (row.n || 1079) + 1;
   const id = `REQ-${nextNum}`;
-  const today = nowStamp().slice(0, 10);
+  const now = new Date().toISOString();
 
   const units = q.unitsForUser().all(tenant.id);
   // Derive property_id from the unit the tenant submitted, rather than always
@@ -321,16 +316,16 @@ function createRequest(tenant, body) {
     body.title,
     body.detail || 'No further details provided.',
     body.urgency,
-    today,
-    today
+    now,
+    now
   );
-  q.insertHistory().run(id, statusLabel('submitted'), nowStamp());
+  q.insertHistory().run(id, statusLabel('submitted'), now);
 
   // Notify the property manager of a new request.
   const prop = q.propertyById().get(propertyId);
   if (prop) {
     q.insertNotification().run(prop.manager_id, '\uD83D\uDD27',
-      `New request ${id} submitted by ${tenant.name}.`, nowStamp());
+      `New request ${id} submitted by ${tenant.name}.`, now);
   }
 
   logger.info('New request created', { requestId: id, tenantId: tenant.id, category: body.category });

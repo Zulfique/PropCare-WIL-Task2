@@ -503,6 +503,18 @@ requestAll: () => db.prepare(`
     LEFT JOIN requests r ON r.property_id = p.id
     WHERE p.manager_id = ? GROUP BY p.id ORDER BY p.name
   `),
+  countOpenByProperty: () => db.prepare(`
+    SELECT p.id, p.name, COUNT(r.id) AS n FROM properties p
+    LEFT JOIN requests r ON r.property_id = p.id
+      AND r.status IN (${OPEN_STATUSES.map((s) => `'${s}'`).join(', ')})
+    GROUP BY p.id ORDER BY p.name
+  `),
+  countOpenByPropertyForManager: () => db.prepare(`
+    SELECT p.id, p.name, COUNT(r.id) AS n FROM properties p
+    LEFT JOIN requests r ON r.property_id = p.id
+      AND r.status IN (${OPEN_STATUSES.map((s) => `'${s}'`).join(', ')})
+    WHERE p.manager_id = ? GROUP BY p.id ORDER BY p.name
+  `),
   tenantCount: () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'tenant'"),
   managerCount: () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'manager'"),
   technicianCount: () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'technician'"),

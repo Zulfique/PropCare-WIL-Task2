@@ -448,7 +448,7 @@ requestAll: () => db.prepare(`
   requestIdsAll: () => db.prepare('SELECT id FROM requests'),
   insertRequest: () => db.prepare(`
     INSERT INTO requests (id, property_id, unit, tenant_id, category, title, detail, urgency, status, tech_id, created, updated, photos)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NULL, ?, ?, 0)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NULL, ?, ?, ?)
   `),
   updateRequestStatus: () => db.prepare('UPDATE requests SET status = ?, updated = ? WHERE id = ?'),
   updateRequestAssign: () => db.prepare('UPDATE requests SET tech_id = ?, urgency = ?, status = ?, updated = ? WHERE id = ?'),

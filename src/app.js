@@ -6,7 +6,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { seedDatabase } = require('./db');
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { AppError, errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const propertyRoutes = require('./routes/properties');
@@ -84,16 +84,31 @@ app.use(
         },
   })
 );
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('CORS origin not allowed'));
-    },
-  })
-);
+// CORS: always allow same-origin requests (the SPA served by this app) and
+// any origin explicitly listed in CORS_ORIGINS; reject everything else with a
+// clean 403 instead of a 500.
+const buildCorsHandler = () => {
+  const isSameOrigin = (origin, host) => {
+    if (!origin || !host) return false;
+    try {
+      return new URL(origin).host === host;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  return (req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (!origin || allowedOrigins.includes(origin) || isSameOrigin(origin, req.headers.host)) {
+      return cors({ origin: origin ? origin : false })(req, res, next);
+    }
+
+    return next(new AppError('CORS origin not allowed', 403));
+  };
+};
+
+app.use(buildCorsHandler());
 app.use(express.json({ limit: '32kb' }));
 if (!isTest) app.use(morgan('short'));
 

@@ -317,7 +317,8 @@ function createRequest(tenant, body) {
     body.detail || 'No further details provided.',
     body.urgency,
     now,
-    now
+    now,
+    Math.min(Math.max(parseInt(body.photos, 10) || 0, 0), 20)
   );
   q.insertHistory().run(id, statusLabel('submitted'), now);
 

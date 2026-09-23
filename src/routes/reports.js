@@ -34,11 +34,12 @@ function buildSummary(scopeRows) {
   if (!scopeRows) return stats;
 
 
-  const by = (keyFn, nameFn) => {
+  const by = (keyFn, nameFn, rows) => {
+    const source = rows || scopeRows;
     const map = new Map();
 
 
-    scopeRows.forEach((r) => {
+    source.forEach((r) => {
       const key = keyFn(r);
 
 
@@ -94,9 +95,14 @@ function buildSummary(scopeRows) {
   );
 
 
+  // 'Open issues by property' must reflect only requests that are still open
+  // (submitted, under review, assigned, in progress, on hold), so the counts
+  // are derived from the open subset of the scope rows.
+  const openRows = scopeRows.filter((r) => OPEN_STATUSES.includes(r.status));
   stats.byProperty = by(
     (r) => r.property_id,
-    (r) => r.property_name
+    (r) => r.property_name,
+    openRows
   );
 
 

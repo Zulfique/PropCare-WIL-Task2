@@ -48,6 +48,10 @@ const createRequestValidation = [
     .notEmpty()
     .withMessage('Unit is required')
     .isLength({ max: 120 }),
+  body('photos')
+    .optional()
+    .isInt({ min: 0, max: 20 })
+    .withMessage('Photos must be a number between 0 and 20'),
   handleValidationErrors,
 ];
 

@@ -1389,13 +1389,10 @@
       if (API.token()) {
         API.get('/api/auth/me')
           .then(function (d) {
-            state.user = d.data.user;
-            if (location.hash && location.hash.indexOf('#/profile') === -1 && location.hash !== '#/') {
-              route();
-            } else {
+            if (location.hash === '#/' || location.hash.indexOf('#/profile') !== -1) {
               location.hash = '#/';
-              route();
             }
+            setUser(d.data.user);
           })
           .catch(function () { showLogin(); });
       } else {

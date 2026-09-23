@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { AppError } = require('./errorHandler');
+const { q } = require('../db');
 const logger = require('../utils/logger');
 
 const ISSUER = 'propcare';
@@ -22,6 +23,13 @@ const authenticate = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
+    const user = q.userByIdFull().get(decoded.id);
+    if (!user) {
+      return next(new AppError('Invalid token. Access denied.', 401));
+    }
+    if (!user.active) {
+      return next(new AppError('This account has been deactivated. Contact an administrator.', 403));
+    }
     req.user = decoded;
     next();
   } catch (err) {

@@ -48,6 +48,10 @@ const createRequestValidation = [
     .notEmpty()
     .withMessage('Unit is required')
     .isLength({ max: 120 }),
+  body('photos')
+    .optional()
+    .isInt({ min: 0, max: 20 })
+    .withMessage('Photos must be a number between 0 and 20'),
   handleValidationErrors,
 ];
 
@@ -196,6 +200,7 @@ const updateProfileValidation = [
     .isLength({ min: 8 })
     .withMessage('New password must be at least 8 characters long')
     .matches(/[A-Z]/)
+<<<<<<< HEAD
     .withMessage(
       'New password must contain at least one uppercase letter'
     )
@@ -209,6 +214,13 @@ const updateProfileValidation = [
     ),
 
 
+=======
+    .withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/)
+    .withMessage('Password must contain at least one lowercase letter')
+    .matches(/\d/)
+    .withMessage('Password must contain at least one number'),
+>>>>>>> upstream/main
   handleValidationErrors,
 ];
 

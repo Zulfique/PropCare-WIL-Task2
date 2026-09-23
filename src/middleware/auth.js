@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 const { AppError } = require('./errorHandler');
+<<<<<<< HEAD
 const { repositories } = require('../repositories');
+=======
+const { q } = require('../db');
+>>>>>>> upstream/main
 const logger = require('../utils/logger');
 
 const ISSUER = 'propcare';
@@ -25,7 +29,9 @@ const authenticate = (req, res, next) => {
     return next(new AppError('Access denied. No token provided.', 401));
   }
 
+  let decoded;
   try {
+<<<<<<< HEAD
     const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
 
     // Always check the current database account. This means deactivated users
@@ -54,12 +60,41 @@ const authenticate = (req, res, next) => {
   } catch (err) {
     logger.warn('Invalid JWT token attempt', { ip: req.ip, url: req.originalUrl });
 
+=======
+    decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
+  } catch (err) {
+    logger.warn('Invalid JWT token attempt', {
+      ip: req.ip,
+      url: req.originalUrl,
+    });
+>>>>>>> upstream/main
     if (err.name === 'TokenExpiredError') {
       return next(new AppError('Token has expired. Please login again.', 401));
     }
 
     return next(new AppError('Invalid token. Access denied.', 401));
   }
+
+  let user;
+  try {
+    user = q.userByIdFull().get(decoded.id);
+  } catch (err) {
+    logger.error('Database error during authentication', {
+      ip: req.ip,
+      url: req.originalUrl,
+    });
+    return next(new AppError('Internal server error.', 500));
+  }
+
+  if (!user) {
+    return next(new AppError('Invalid token. Access denied.', 401));
+  }
+  if (!user.active) {
+    return next(new AppError('This account has been deactivated. Contact an administrator.', 403));
+  }
+
+  req.user = { id: user.id, name: user.name, email: user.email, role: user.role };
+  next();
 };
 
 const authorize = (...roles) => {

@@ -6,8 +6,12 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { seedDatabase } = require('./db');
+<<<<<<< HEAD
 const { registerObservers } = require('./observers');
 const { errorHandler, notFoundHandler, AppError } = require('./middleware/errorHandler');
+=======
+const { AppError, errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+>>>>>>> upstream/main
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const propertyRoutes = require('./routes/properties');
@@ -33,9 +37,6 @@ const limiter = isTest
   : rateLimit({
       windowMs: 15 * 60 * 1000,
       limit: 600,
-      // Only non-2xx responses consume quota, so heavy normal usage and
-      // multi-run browser suites never lock legitimate users out of the demo.
-      skipSuccessfulRequests: true,
       standardHeaders: true,
       legacyHeaders: false,
       message: {
@@ -102,7 +103,7 @@ app.use(
             scriptSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
             fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-            imgSrc: ["'self'", 'data:'],
+            imgSrc: ["'self'", 'data:', 'blob:'],
             connectSrc: ["'self'"],
             frameAncestors: ["'none'"],
             baseUri: ["'self'"],
@@ -115,6 +116,7 @@ app.use(
       : false,
   })
 );
+<<<<<<< HEAD
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -133,6 +135,33 @@ app.use(
     },
   })
 );
+=======
+// CORS: always allow same-origin requests (the SPA served by this app) and
+// any origin explicitly listed in CORS_ORIGINS; reject everything else with a
+// clean 403 instead of a 500.
+const buildCorsHandler = () => {
+  const isSameOrigin = (origin, host) => {
+    if (!origin || !host) return false;
+    try {
+      return new URL(origin).host === host;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  return (req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (!origin || allowedOrigins.includes(origin) || isSameOrigin(origin, req.headers.host)) {
+      return cors({ origin: origin ? origin : false })(req, res, next);
+    }
+
+    return next(new AppError('CORS origin not allowed', 403));
+  };
+};
+
+app.use(buildCorsHandler());
+>>>>>>> upstream/main
 app.use(express.json({ limit: '32kb' }));
 if (!isTest) app.use(morgan('short'));
 

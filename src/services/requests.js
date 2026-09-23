@@ -12,6 +12,7 @@ const { AppError } = require('../middleware/errorHandler');
 const { OPEN_STATUSES, statusLabel, roleLabel } = require('../utils/labels');
 const logger = require('../utils/logger');
 
+<<<<<<< HEAD
 function nowStamp() {
   const d = new Date();
   return `${d.toISOString().slice(0, 10)} ${d.toTimeString().slice(0, 5)}`;
@@ -34,6 +35,8 @@ function resolveActor(user) {
 /* Listing                                                             */
 /* ------------------------------------------------------------------ */
 
+=======
+>>>>>>> upstream/main
 function listForUser(user) {
   const actor = resolveActor(user);
   if (actor.role === 'admin') return repositories.requests.listAll();
@@ -239,9 +242,31 @@ function applyStatusAction(user, id, action, text) {
     throw new AppError(`Action "${action}" is not allowed for ${user.role} on a ${row.status} request.`, 400);
   }
 
+<<<<<<< HEAD
   const nextStatus = NEXT_STATUS[action];
   const when = nowStamp();
   const note = text || ACTION_NOTE[action] || 'Status updated.';
+=======
+  let nextStatus = null;
+  switch (action) {
+    case 'cancel': nextStatus = 'cancelled'; break;
+    case 'confirm': nextStatus = 'closed'; break;
+    case 'approve': nextStatus = 'closed'; break;
+    case 'accept': nextStatus = 'in-progress'; break;
+    case 'reject': nextStatus = 'rejected'; break;
+    case 'hold': nextStatus = 'on-hold'; break;
+    case 'resume': nextStatus = 'in-progress'; break;
+    case 'complete': nextStatus = 'completed'; break;
+    case 'reopen': nextStatus = 'in-progress'; break;
+    default: break;
+  }
+
+  const when = new Date().toISOString();
+  const note = text || ACTION_NOTE[action] || 'Status updated.';
+  q.updateRequestStatus().run(nextStatus, when, id);
+  q.insertHistory().run(id, statusLabel(nextStatus), when);
+  q.insertComment().run(id, user.id, user.name, roleLabel(user.role), note, when);
+>>>>>>> upstream/main
 
   repositories.requests.transaction(() => {
     // `updated` keeps the full timestamp so ordering within a day is stable.
@@ -272,6 +297,32 @@ function applyStatusAction(user, id, action, text) {
   return getDetail(user, id);
 }
 
+<<<<<<< HEAD
+=======
+function notifyForRequest(row, actor, action, requestId) {
+  const stamp = new Date().toISOString();
+  const tenantName = row.tenant_name;
+  if (action === 'confirm' || action === 'approve' || action === 'cancel') {
+    q.insertNotification().run(row.tenant_id, '\u2705', `Request ${requestId} was ${action}ed by ${actor.name}.`, stamp);
+  }
+  if (action === 'accept' || action === 'complete') {
+    const techName = row.technician_name || actor.name;
+    const title = action === 'accept'
+      ? `${techName} accepted job ${requestId}.`
+      : `${techName} marked ${requestId} complete - awaiting confirmation.`;
+    if (row.tenant_id) q.insertNotification().run(row.tenant_id, '\uD83D\uDD27', title, stamp);
+  }
+  // Notify the property manager for tenant + technician actions
+  if (action === 'cancel' || action === 'confirm' || action === 'reopen' || action === 'complete') {
+    const prop = q.propertyById().get(row.property_id);
+    if (prop && prop.manager_id !== actor.id) {
+      q.insertNotification().run(prop.manager_id, '\uD83D\uDD27',
+        `${actor.name} ${action === 'complete' ? 'completed' : action + 'ed'} ${requestId}.`, stamp);
+    }
+  }
+}
+
+>>>>>>> upstream/main
 function assignRequest(manager, id, technicianId, urgency, note) {
   const row = repositories.requests.findById(id);
   if (!row) {
@@ -291,6 +342,7 @@ function assignRequest(manager, id, technicianId, urgency, note) {
     throw new AppError('Technician not found.', 404);
   }
 
+<<<<<<< HEAD
   const when = nowStamp();
   repositories.requests.transaction(() => {
     repositories.requests.assign(id, technicianId, urgency, when);
@@ -304,6 +356,13 @@ function assignRequest(manager, id, technicianId, urgency, note) {
       createdAt: when,
     });
   });
+=======
+  const when = new Date().toISOString();
+  q.updateRequestAssign().run(technicianId, urgency, 'assigned', when, id);
+  q.insertHistory().run(id, statusLabel('assigned'), when);
+  const noteText = note || `Assigned to ${tech.name}.`;
+  q.insertComment().run(id, manager.id, manager.name, roleLabel('manager'), noteText, when);
+>>>>>>> upstream/main
 
   eventBus.emit('request.assigned', {
     type: 'request.assigned',
@@ -333,6 +392,7 @@ function rateRequest(tenant, id, stars) {
   if (repositories.requests.ratingFor(id)) {
     throw new AppError('This request has already been rated.', 400);
   }
+<<<<<<< HEAD
 
   const when = nowStamp();
   repositories.requests.transaction(() => {
@@ -356,6 +416,17 @@ function rateRequest(tenant, id, stars) {
     managerId: managerFor(row),
   });
 
+=======
+  const when = new Date().toISOString();
+  q.insertRating().run(id, tenant.id, stars, when);
+  q.insertComment().run(id, tenant.id, tenant.name, roleLabel('tenant'),
+    `Tenant rated the completed work ${stars} out of 5.`, when);
+  const prop = q.propertyById().get(row.property_id);
+  if (prop) {
+    q.insertNotification().run(prop.manager_id, '\u2B50',
+      `${tenant.name} rated ${id} ${stars}/5.`, when);
+  }
+>>>>>>> upstream/main
   return getDetail(tenant, id);
 }
 
@@ -367,6 +438,7 @@ function commentOnRequest(user, id, text) {
   if (!canView(user, row)) {
     throw new AppError('You do not have permission to comment on this request.', 403);
   }
+<<<<<<< HEAD
   const when = nowStamp();
   repositories.requests.addComment({
     requestId: id,
@@ -385,6 +457,10 @@ function commentOnRequest(user, id, text) {
     managerId: managerFor(row),
   });
 
+=======
+  const when = new Date().toISOString();
+  q.insertComment().run(id, user.id, user.name, roleLabel(user.role), text, when);
+>>>>>>> upstream/main
   return getDetail(user, id);
 }
 
@@ -396,6 +472,7 @@ function addPhoto(user, id) {
   if (!canView(user, row)) {
     throw new AppError('You do not have permission to update this request.', 403);
   }
+<<<<<<< HEAD
   const when = nowStamp();
   repositories.requests.incrementPhotos(id, when);
 
@@ -406,18 +483,33 @@ function addPhoto(user, id) {
     request: eventRequest(row),
   });
 
+=======
+  q.incrementPhotos().run(new Date().toISOString(), id);
+>>>>>>> upstream/main
   return getDetail(user, id);
 }
 
 function createRequest(tenant, body) {
+<<<<<<< HEAD
   const units = repositories.users.unitsFor(tenant.id);
   // Derive the property from the unit the tenant selected rather than always
   // defaulting to the first unit in their list.
+=======
+  const row = q.nextReqNumber().get();
+  const nextNum = (row.n || 1079) + 1;
+  const id = `REQ-${nextNum}`;
+  const now = new Date().toISOString();
+
+  const units = q.unitsForUser().all(tenant.id);
+  // Derive property_id from the unit the tenant submitted, rather than always
+  // defaulting to the first unit in the tenant's unit list.
+>>>>>>> upstream/main
   const selectedUnit = units.find((u) => u.name === body.unit);
   if (!selectedUnit) {
     throw new AppError('You can only submit a request for one of your assigned units.', 400);
   }
 
+<<<<<<< HEAD
   const when = nowStamp();
   const id = repositories.requests.allocateId();
 
@@ -451,6 +543,29 @@ function createRequest(tenant, body) {
     },
     managerId: (repositories.properties.findById(selectedUnit.property_id) || {}).manager_id || null,
   });
+=======
+  q.insertRequest().run(
+    id,
+    propertyId,
+    body.unit,
+    tenant.id,
+    body.category,
+    body.title,
+    body.detail || 'No further details provided.',
+    body.urgency,
+    now,
+    now,
+    Math.min(Math.max(parseInt(body.photos, 10) || 0, 0), 20)
+  );
+  q.insertHistory().run(id, statusLabel('submitted'), now);
+
+  // Notify the property manager of a new request.
+  const prop = q.propertyById().get(propertyId);
+  if (prop) {
+    q.insertNotification().run(prop.manager_id, '\uD83D\uDD27',
+      `New request ${id} submitted by ${tenant.name}.`, now);
+  }
+>>>>>>> upstream/main
 
   logger.info('New request created', { requestId: id, tenantId: tenant.id, category: body.category });
   return getDetail(tenant, id);

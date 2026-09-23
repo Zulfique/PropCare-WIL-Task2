@@ -138,6 +138,41 @@ describe('Requests API - POST /api/requests (tenant create)', () => {
     expect(r.tenantName).toBe('Sarah Williams');
   });
 
+  it('carries the wizard photo count onto the created request', async () => {
+    const token = await login('sarahwilliams@example.com');
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'plumbing',
+        unit: 'Claremont Unit 3B',
+        title: 'Photo count carry-over test',
+        detail: 'Reported with photos attached in the wizard.',
+        urgency: 'normal',
+        photos: 2,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.request.photos).toBe(2);
+  });
+
+  it('rejects an out-of-range photo count', async () => {
+    const token = await login('sarahwilliams@example.com');
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'plumbing',
+        unit: 'Claremont Unit 3B',
+        title: 'Too many photos',
+        detail: 'x',
+        urgency: 'low',
+        photos: 99,
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('rejects creation from a non-tenant role', async () => {
     const token = await login('michael.jacobs@obsrealty.co.za');
     const res = await request(app)

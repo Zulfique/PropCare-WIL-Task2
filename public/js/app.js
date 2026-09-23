@@ -193,7 +193,7 @@
     if (seg === 'request') label = 'Request detail';
     if (seg === 'job') label = 'Job detail';
     if (seg === 'report') label = 'Report an issue';
-    bc.innerHTML = 'Horizon Property Group &rsaquo; <b>' + esc(roleLabel(user.role)) + '</b>' +
+    bc.innerHTML = 'Obs Realty &rsaquo; <b>' + esc(roleLabel(user.role)) + '</b>' +
       (label ? ' &rsaquo; ' + esc(label) : '');
   }
 
@@ -990,8 +990,13 @@
         '<div class="grid stat-grid">' +
         statCard(s.total, 'Total requests', 'all time') +
         statCard(s.open, 'Open', 'awaiting action') +
+<<<<<<< HEAD
         statCard(s.resolved, 'Resolved', 'closed & confirmed') +
         statCard(s.byStatus.filter(function (x) { return x.status === 'in-progress' || x.status === 'on-hold'; }).length, 'In flight', 'in progress or on hold') +
+=======
+        statCard(s.resolved, 'Resolved', 'closed') +
+        statCard(s.byUrgency.filter(function (x) { return x.urgency === 'high' || x.urgency === 'urgent'; }).length, 'Attention flags', 'needs a look') +
+>>>>>>> upstream/main
         '</div>' +
         '<div class="grid two-col">' +
         '<div class="card"><h3 class="card-title">Recurring issues by category</h3>' +
@@ -1251,7 +1256,7 @@
       '<div class="hero"><h1>System settings</h1><p>Configuration for the Obs Realty deployment.</p></div>' +
       '<div class="grid two-col">' +
       '<div class="card"><h3 class="card-title">Workspace</h3>' +
-      '<label class="field-label" for="wsName">Organisation name</label><input class="field" id="wsName" value="Horizon Property Group">' +
+      '<label class="field-label" for="wsName">Organisation name</label><input class="field" id="wsName" value="Obs Realty">' +
       '<label class="field-label" for="wsNotif">Notification channel (Observer pattern)</label><select class="field" id="wsNotif"><option>In-app push + email</option><option>In-app push only</option><option>Email only</option></select>' +
       '<div style="margin-top:14px"><button type="button" class="btn btn-accent" id="saveSet">Save settings</button></div></div>' +
       '<div class="card"><h3 class="card-title">Security</h3>' +
@@ -1467,13 +1472,10 @@
       if (API.token()) {
         API.get('/api/auth/me')
           .then(function (d) {
-            state.user = d.data.user;
-            if (location.hash && location.hash.indexOf('#/profile') === -1 && location.hash !== '#/') {
-              route();
-            } else {
+            if (location.hash === '#/' || location.hash.indexOf('#/profile') !== -1) {
               location.hash = '#/';
-              route();
             }
+            setUser(d.data.user);
           })
           .catch(function () { showLogin(); });
       } else {

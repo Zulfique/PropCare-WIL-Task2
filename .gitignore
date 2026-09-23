@@ -24,3 +24,6 @@ Thumbs.db
 coverage/
 .playwright-mcp/
 browser-shots/
+
+# Tunnel tooling cache (cloudflared binary)
+.tooling/

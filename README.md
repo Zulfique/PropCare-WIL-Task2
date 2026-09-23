@@ -66,6 +66,36 @@ Node 22 is required because the application uses Node's built-in `node:sqlite` m
 npm ci
 ```
 
+### Share a live URL with no account, no API key and no cost
+
+`npm run tunnel` starts the PropCare server on your machine and exposes it over
+a **Cloudflare Quick Tunnel** (`trycloudflare.com`). No account, no API key, no
+credit card and no Render/paid hosting needed:
+
+- `cloudflared` is downloaded automatically on first use and cached under
+  `.tooling/` (git-ignored).
+- A temporary `JWT_SECRET` is generated automatically if no `.env` is present,
+  so the command works with zero setup.
+
+```bash
+npm run tunnel
+```
+
+When the tunnel is up you'll see two public URLs to open or share:
+
+```
+App     https://<random>.trycloudflare.com
+Health  https://<random>.trycloudflare.com/api/health
+```
+
+Caveats:
+
+- The URL is only live while `npm run tunnel` is running on your machine.
+- The URL is random and changes every time you restart the tunnel.
+- It is a preview/demo link, not a permanent production URL. For an always-on
+  public deployment, use the Render blueprint (`render.yaml`) on a free Render
+  account - that is the only approach that does not need your PC to stay on.
+
 ## Security audit
 
 ### Production dependencies

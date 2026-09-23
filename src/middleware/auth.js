@@ -21,28 +21,40 @@ const authenticate = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
-    const user = q.userByIdFull().get(decoded.id);
-    if (!user) {
-      return next(new AppError('Invalid token. Access denied.', 401));
-    }
-    if (!user.active) {
-      return next(new AppError('This account has been deactivated. Contact an administrator.', 403));
-    }
-    req.user = decoded;
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
   } catch (err) {
     logger.warn('Invalid JWT token attempt', {
       ip: req.ip,
       url: req.originalUrl,
     });
-
     if (err.name === 'TokenExpiredError') {
       return next(new AppError('Token has expired. Please login again.', 401));
     }
     return next(new AppError('Invalid token. Access denied.', 401));
   }
+
+  let user;
+  try {
+    user = q.userByIdFull().get(decoded.id);
+  } catch (err) {
+    logger.error('Database error during authentication', {
+      ip: req.ip,
+      url: req.originalUrl,
+    });
+    return next(new AppError('Internal server error.', 500));
+  }
+
+  if (!user) {
+    return next(new AppError('Invalid token. Access denied.', 401));
+  }
+  if (!user.active) {
+    return next(new AppError('This account has been deactivated. Contact an administrator.', 403));
+  }
+
+  req.user = { id: user.id, name: user.name, email: user.email, role: user.role };
+  next();
 };
 
 /**

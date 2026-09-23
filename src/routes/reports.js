@@ -20,6 +20,8 @@ const RESOLVED_STATUSES = [
   'completed',
 ];
 
+const URGENCIES = ['low', 'normal', 'high', 'urgent'];
+
 function buildSummary(scopeRows) {
   const stats = {
     total: 0,
@@ -86,6 +88,16 @@ function buildSummary(scopeRows) {
       status,
       count,
     }))
+    .sort((a, b) => b.count - a.count);
+
+
+  const urgencyMap = {};
+  scopeRows.forEach((r) => {
+    const u = r.urgency || 'normal';
+    urgencyMap[u] = (urgencyMap[u] || 0) + 1;
+  });
+  stats.byUrgency = Object.entries(urgencyMap)
+    .map(([urgency, count]) => ({ urgency, count }))
     .sort((a, b) => b.count - a.count);
 
 

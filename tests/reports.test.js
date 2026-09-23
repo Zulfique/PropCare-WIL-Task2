@@ -46,7 +46,7 @@ describe('Reports API - GET /api/reports/summary', () => {
 
 
     // Michael's portfolio (P1, P2, P4, P6, P8, P10) in the seed data:
-    // 2 in-progress, 1 submitted, 1 under-review, 1 assigned, 1 on-hold,
+    // 2 in-progress, 1 submitted, 2 under-review, 1 assigned, 1 on-hold,
     // 1 closed and 0 completed. Reports treats 'completed' as resolved, so it
     // is not counted as open.
     expect(statusCounts['in-progress']).toBe(2);

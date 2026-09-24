@@ -990,13 +990,13 @@
         '<div class="grid stat-grid">' +
         statCard(s.total, 'Total requests', 'all time') +
         statCard(s.open, 'Open', 'awaiting action') +
-<<<<<<< HEAD
+
         statCard(s.resolved, 'Resolved', 'closed & confirmed') +
         statCard(s.byStatus.filter(function (x) { return x.status === 'in-progress' || x.status === 'on-hold'; }).length, 'In flight', 'in progress or on hold') +
-=======
+
         statCard(s.resolved, 'Resolved', 'closed') +
         statCard(s.byUrgency.filter(function (x) { return x.urgency === 'high' || x.urgency === 'urgent'; }).length, 'Attention flags', 'needs a look') +
->>>>>>> upstream/main
+
         '</div>' +
         '<div class="grid two-col">' +
         '<div class="card"><h3 class="card-title">Recurring issues by category</h3>' +

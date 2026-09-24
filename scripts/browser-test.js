@@ -12,6 +12,12 @@ const CHROME = process.env.PPC_CHROME || process.env.CHROME || undefined;
 const BASE = process.env.PPC_BASE || 'http://localhost:8124';
 const SHOTS = path.join(__dirname, '..', 'browser-shots');
 const SHOTS_ONLY = process.argv.indexOf('--shots-only') !== -1;
+const BASE =
+  process.env.PPC_BASE || 'http://localhost:8124';
+
+const SHOTS = path.join(__dirname, '..', 'browser-shots');
+const SHOTS_ONLY = process.argv.indexOf('--shots-only') !== -1;
+
 
 const CHROME =
   process.env.PPC_CHROME || undefined;
@@ -22,6 +28,7 @@ const SHOTS =
 const SHOTS_ONLY =
   process.argv.indexOf('--shots-only') !== -1;
 upstream/main
+
 
 const PASS = 'PASS', FAIL = 'FAIL', INFO = 'INFO';
 const results = [];

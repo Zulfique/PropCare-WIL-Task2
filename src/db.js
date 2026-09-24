@@ -407,7 +407,7 @@ async function seedDatabase() {
 
   insertRating.run('REQ-1027', 'U5', 5, '2026-08-10 11:00');
 
-<<<<<<< HEAD
+
   console.log(`[propcare] seeded database with ${users.length} users, ${properties.length} properties and ${requests.length} requests.`);
   console.log(`[propcare] demo password for all accounts: ${process.env.DEMO_PASSWORD || 'not configured'}`);
 }
@@ -424,7 +424,7 @@ function transaction(fn) {
     throw err;
   }
 }
-=======
+
   console.log(
     `[propcare] seeded database with ${users.length} users, ` +
     `${properties.length} properties and ${requests.length} requests.`
@@ -619,7 +619,7 @@ requestAll: () => db.prepare(`
   propertyCount: () => db.prepare('SELECT COUNT(*) AS n FROM properties'),
   unitCount: () => db.prepare('SELECT COUNT(*) AS n FROM units'),
 };
->>>>>>> upstream/main
+
 
 module.exports = {
   db,

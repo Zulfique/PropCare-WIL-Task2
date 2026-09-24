@@ -1,6 +1,5 @@
 # PropCare — Smart Property Maintenance Management
 
-<<<<<<< HEAD
 > **Obs Realty Group — WIL Task 2** | Full-stack maintenance workflow for the Horizon portfolio: residents report → managers triage and assign → technicians resolve → everything audited.
 
 **Live URLs**
@@ -459,4 +458,4 @@ The application no longer logs `DEMO_PASSWORD` at startup. The seed message now 
 ```
 [propcare] demo account credentials configured.
 ```
->>>>>>> upstream/main
+

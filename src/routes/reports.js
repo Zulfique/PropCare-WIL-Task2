@@ -19,11 +19,11 @@ function buildSummary(user) {
   const actor = resolveActor(user);
   const totals = repositories.requests.totals(actor);
 
-<<<<<<< HEAD
+
   const byCategory = repositories.requests
     .countByCategory(actor)
     .map((c) => ({ name: c.name, count: c.n }))
-=======
+
 const RESOLVED_STATUSES = [
   'closed',
   'completed',
@@ -97,7 +97,7 @@ function buildSummary(scopeRows) {
       status,
       count,
     }))
->>>>>>> upstream/main
+
     .sort((a, b) => b.count - a.count);
 
   const byStatus = repositories.requests
@@ -105,7 +105,7 @@ function buildSummary(scopeRows) {
     .map((s) => ({ status: s.status, count: s.n }))
     .sort((a, b) => b.count - a.count);
 
-<<<<<<< HEAD
+
   const scope = actor.role === 'manager' ? { managerId: actor.id } : {};
   const byProperty = repositories.properties
     .requestCounts({ ...scope, openOnly: true })
@@ -121,7 +121,7 @@ function buildSummary(scopeRows) {
     byStatus,
     byProperty,
   };
-=======
+
   const urgencyMap = {};
   scopeRows.forEach((r) => {
     const u = r.urgency || 'normal';
@@ -150,7 +150,7 @@ function buildSummary(scopeRows) {
 
 
   return stats;
->>>>>>> upstream/main
+
 }
 
 /**

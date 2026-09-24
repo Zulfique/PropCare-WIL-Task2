@@ -6,12 +6,12 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 const { seedDatabase } = require('./db');
-<<<<<<< HEAD
+
 const { registerObservers } = require('./observers');
 const { errorHandler, notFoundHandler, AppError } = require('./middleware/errorHandler');
-=======
+
 const { AppError, errorHandler, notFoundHandler } = require('./middleware/errorHandler');
->>>>>>> upstream/main
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const propertyRoutes = require('./routes/properties');
@@ -116,7 +116,7 @@ app.use(
       : false,
   })
 );
-<<<<<<< HEAD
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -135,7 +135,7 @@ app.use(
     },
   })
 );
-=======
+
 // CORS: always allow same-origin requests (the SPA served by this app) and
 // any origin explicitly listed in CORS_ORIGINS; reject everything else with a
 // clean 403 instead of a 500.
@@ -161,7 +161,7 @@ const buildCorsHandler = () => {
 };
 
 app.use(buildCorsHandler());
->>>>>>> upstream/main
+
 app.use(express.json({ limit: '32kb' }));
 if (!isTest) app.use(morgan('short'));
 

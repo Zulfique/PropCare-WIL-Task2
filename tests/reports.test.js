@@ -25,15 +25,13 @@ describe('Reports API - GET /api/reports/summary', () => {
 
     const s = res.body.data.summary;
 
-<<<<<<< HEAD
+
     // Michael manages P1, P2, P4, P6, P8 and P10. The seed places exactly
     // eight requests on those properties:
     //   REQ-1045, REQ-1046, REQ-1076 (P1) | REQ-1032 (P2) | REQ-1038 (P4)
     //   REQ-1061 (P6) | REQ-1009 (P8)    | REQ-1078 (P10)
     // -> 8 total, 7 open, 1 resolved (closed).
-=======
 
->>>>>>> upstream/main
     expect(s.total).toBe(8);
     expect(s.open).toBe(7);
     expect(s.resolved).toBe(1);
@@ -51,7 +49,6 @@ describe('Reports API - GET /api/reports/summary', () => {
       s.byStatus.map((item) => [item.status, item.count])
     );
 
-<<<<<<< HEAD
     expect(statusCounts['in-progress']).toBe(2);
     expect(statusCounts['under-review']).toBe(2);
     expect(statusCounts.closed).toBe(1);
@@ -65,7 +62,7 @@ describe('Reports API - GET /api/reports/summary', () => {
     // totals: her properties are P3, P5, P7 and P9.
     const ids = s.byCategory.reduce((n, c) => n + c.count, 0);
     expect(ids).toBe(8);
-=======
+
 
     // Michael's portfolio (P1, P2, P4, P6, P8, P10) in the seed data:
     // 2 in-progress, 1 submitted, 2 under-review, 1 assigned, 1 on-hold,
@@ -80,7 +77,7 @@ describe('Reports API - GET /api/reports/summary', () => {
     // in Michael's status totals (her completed jobs stay absent).
     expect(statusCounts['under-review']).toBe(2);
     expect(statusCounts.assigned || 0).toBe(1);
->>>>>>> upstream/main
+
   });
 
   it('returns platform-wide totals for an admin', async () => {

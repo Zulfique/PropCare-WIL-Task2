@@ -34,7 +34,7 @@ router.post('/', authorize('admin'), registerUserValidation, async (req, res, ne
     if (repositories.users.findByEmail(email)) {
       return next(new AppError('A user with this email already exists', 409));
     }
-<<<<<<< HEAD
+
 
     // A tenant needs a unit before they can raise a request.
     if (role === 'tenant' && (!propertyId || !unit)) {
@@ -45,10 +45,10 @@ router.post('/', authorize('admin'), registerUserValidation, async (req, res, ne
     }
 
     const id = repositories.users.nextId();
-=======
+
     // UUID keeps ids unique regardless of deletions or reordering.
     const id = `U${crypto.randomUUID().replace(/-/g, '')}`;
->>>>>>> upstream/main
+
     const hash = await bcrypt.hash(password, 10);
 
     repositories.users.transaction(() => {

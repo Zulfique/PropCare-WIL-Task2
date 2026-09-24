@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.use(authenticate);
 
-<<<<<<< HEAD
+
 /**
  * Role-scoped property list. Every role sees only what it is entitled to:
  *   admin      -> the whole portfolio
@@ -44,7 +44,7 @@ router.get('/', (req, res, next) => {
     res.status(200).json({ status: 'success', data: { properties } });
   } catch (err) {
     next(err);
-=======
+
 /** Role-scoped property ids the user is actually involved with via requests. */
 function accessiblePropertyIds(user) {
   if (user.role === 'tenant') return q.propertiesForRequests().all(user.id).map((p) => p.id);
@@ -76,13 +76,13 @@ router.get('/', (req, res) => {
     rows = q.propertiesForTechnician().all(req.user.id);
   } else {
     rows = [];
->>>>>>> upstream/main
+
   }
 });
 
 // GET /api/properties/:id
 router.get('/:id', (req, res, next) => {
-<<<<<<< HEAD
+
   try {
     const prop = repositories.properties.findById(req.params.id);
 
@@ -117,7 +117,7 @@ router.get('/:id', (req, res, next) => {
             .requestCounts({})
             .find((p) => p.id === prop.id)?.n || 0,
         },
-=======
+
   const prop = q.propertyById().get(req.params.id);
   if (!prop) {
     return next(new AppError('Property not found', 404));
@@ -145,7 +145,7 @@ router.get('/:id', (req, res, next) => {
         managerId: prop.manager_id,
         managerName: prop.manager_name,
         openRequests: openCountFor(prop, req.user),
->>>>>>> upstream/main
+
       },
     });
   } catch (err) {

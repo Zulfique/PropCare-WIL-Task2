@@ -1338,6 +1338,7 @@
 
   /* ---------------- login ---------------- */
   var EMAILS = {
+    'sarahwilliams@example.com': 'Sarah Williams — Tenant',
     'michael.jacobs@obsrealty.co.za': 'Michael Jacobs — Property Manager',
     'johan.vdm@obsrealty.co.za': 'Johan van der Merwe — Technician',
     'admin@obsrealty.co.za': 'System Admin — Administrator'
@@ -1354,14 +1355,17 @@
     roleSel.addEventListener('change', function () {
       if (EMAILS[roleSel.value]) {
         email.value = roleSel.value;
-        document.getElementById('loginPassword').value = 'PropCare123!';
+        // The demo password comes from DEMO_PASSWORD on the server, so the
+        // client cannot know it. Clear the field rather than asserting a
+        // value that may not be the real one.
+        document.getElementById('loginPassword').value = '';
       }
       setErr('');
     });
     document.getElementById('loginBtn').addEventListener('click', doLogin);
     document.getElementById('loginPassword').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
     document.getElementById('forgotBtn').addEventListener('click', function () {
-      toast('In this demo every account uses the password shown on the sign-in card.');
+      toast('Ask an administrator to reset your password.');
     });
   }
 
@@ -1438,6 +1442,7 @@
     overdueRequests: overdueRequests,
     isResolved: isResolved,
     initials: initials,
+    init: function () {
       wireLogin();
       wireGlobal();
       if (API.token()) {

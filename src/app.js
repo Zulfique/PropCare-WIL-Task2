@@ -87,16 +87,24 @@ app.use(
         },
   })
 );
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('CORS origin not allowed'));
-    },
-  })
-);
+// CORS: allow same-origin requests (the SPA is served by this very server),
+// any origin whitelisted via CORS_ORIGINS, and reject the rest. Browsers send
+// an Origin header even on same-origin fetches, so a plain whitelist 500s the
+// app's own logins; the delegate form lets us compare Origin against Host.
+const corsDelegate = (req, callback) => {
+  const origin = req.headers.origin;
+  let sameHost = false;
+  if (origin && req.headers.host) {
+    try {
+      sameHost = new URL(origin).host === req.headers.host;
+    } catch (e) {
+      sameHost = false;
+    }
+  }
+  const allow = !origin || sameHost || allowedOrigins.includes(origin);
+  callback(null, { origin: allow });
+};
+app.use(cors(corsDelegate));
 app.use(express.json({ limit: '32kb' }));
 if (!isTest) app.use(morgan('short'));
 

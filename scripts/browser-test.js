@@ -30,10 +30,15 @@ function record(step, status, note) {
 }
 
 const EMAILS = {
+  tenant: 'sarahwilliams@example.com',
   manager: 'michael.jacobs@obsrealty.co.za',
   tech: 'johan.vdm@obsrealty.co.za',
   admin: 'admin@obsrealty.co.za'
 };
+
+// The password is never prefilled by the frontend (it comes from DEMO_PASSWORD
+// on the server), so the suite types it explicitly like a real user would.
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'PropCare123!';
 
 function errFile(kind, roleOrName) {
   return path.join(SHOTS, 'errors', `${kind}-${roleOrName}.png`);
@@ -60,6 +65,8 @@ async function login(page, role) {
   await page.goto(BASE + '/#/', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#loginScreen:not(.hidden)');
   await page.select('#loginRole', EMAILS[role]);
+  await page.evaluate(() => { document.getElementById('loginPassword').value = ''; });
+  await page.type('#loginPassword', DEMO_PASSWORD);
   await page.click('#loginBtn');
   try {
     await page.waitForSelector('#app:not(.hidden)', { timeout: 10000 });
@@ -91,9 +98,9 @@ async function captureError(page, role, step) {
   const dir = path.join(SHOTS, role, 'errors');
   fs.mkdirSync(dir, { recursive: true });
   const timestamp = Date.now();
-  const path = path.join(dir, `${step}-${timestamp}.png`);
-  await page.screenshot({ path, fullPage: true });
-  return path;
+  const file = path.join(dir, `${step}-${timestamp}.png`);
+  await page.screenshot({ path: file, fullPage: true });
+  return file;
 }
 
 async function waitRendered(page) {

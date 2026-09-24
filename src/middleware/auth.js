@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { AppError } = require('./errorHandler');
 const logger = require('../utils/logger');
+const { q } = require('../db');
 
 const ISSUER = 'propcare';
 const AUDIENCE = 'propcare-api';
@@ -22,6 +23,18 @@ const authenticate = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
+
+    // A signed JWT can outlive the account it was issued for (deactivation,
+    // deletion). Re-check the live account state on every request so a
+    // deactivated user's existing token stops granting access immediately.
+    const account = q.userActiveFlag().get(decoded.id);
+    if (!account) {
+      return next(new AppError('User account no longer exists.', 403));
+    }
+    if (!account.active) {
+      return next(new AppError('This account has been deactivated. Contact an administrator.', 403));
+    }
+
     req.user = decoded;
     next();
   } catch (err) {

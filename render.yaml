@@ -6,7 +6,7 @@ services:
     name: propcare-wil-task2
     runtime: node
     plan: free
-    buildCommand: npm ci
+    buildCommand: npm ci --omit=dev
     startCommand: node --experimental-sqlite server.js
     healthCheckPath: /api/health
     disk:

@@ -46,14 +46,15 @@ describe('Reports API - GET /api/reports/summary', () => {
 
 
     expect(statusCounts['in-progress']).toBe(2);
-    expect(statusCounts.completed).toBe(1);
+    expect(statusCounts.submitted).toBe(1);
+    expect(statusCounts['under-review']).toBe(2);
+    expect(statusCounts.assigned).toBe(1);
+    expect(statusCounts['on-hold']).toBe(1);
     expect(statusCounts.closed).toBe(1);
-    expect(statusCounts.submitted).toBe(2);
+    expect(statusCounts.completed).toBeUndefined();
 
-
-    // Requests belonging to Ayesha's portfolio must not appear
-    // in Michael's status totals.
-    expect(statusCounts.assigned || 0).toBe(0);
+    // REQ-1027 (completed, Dishwasher) belongs to Ayesha's portfolio, so it
+    // must not appear in Michael's status totals.
   });
 
   it('returns platform-wide totals for an admin', async () => {

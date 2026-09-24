@@ -344,6 +344,9 @@ const q = {
   userById: () => db.prepare(`
     SELECT id, name, email, role, active, created_at FROM users WHERE id = ?
   `),
+  userActiveFlag: () => db.prepare(`
+    SELECT active FROM users WHERE id = ?
+  `),
   userByIdFull: () => db.prepare(`
     SELECT * FROM users WHERE id = ?
   `),

@@ -1,12 +1,16 @@
-﻿/**
- * PropCare - SQLite data layer.
+/**
+ * PropCare - SQLite connection, schema, migrations and seed data.
  *
- * Uses the built-in `node:sqlite` module (Node >= 22.5).
- * The database file is created automatically on first run and seeded with
- * the Obs Realty Group demo dataset when it is empty.
+ * Uses the built-in `node:sqlite` module (Node >= 22.5). The database file is
+ * created automatically on first run and seeded with the Obs Realty Group demo
+ * dataset when it is empty.
  *
- * NOTE: `node:sqlite` is flagged experimental in Node 22/23, so the server
- * is started with `--experimental-sqlite` (see package.json scripts).
+ * NOTE: `node:sqlite` is flagged experimental in Node 22/23, so the server is
+ * started with `--experimental-sqlite` (see package.json scripts).
+ *
+ * This module owns *only* the connection and the physical schema. All data
+ * access lives in `src/repositories/**` (Repository pattern), so no route or
+ * service ever talks to the driver directly.
  */
 const path = require('path');
 const fs = require('node:fs');
@@ -42,7 +46,9 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role          TEXT NOT NULL CHECK (role IN ('tenant','manager','technician','admin')),
   active        INTEGER NOT NULL DEFAULT 1,
-  created_at    TEXT NOT NULL
+  created_at    TEXT NOT NULL,
+  failed_logins INTEGER NOT NULL DEFAULT 0,
+  locked_until  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS properties (
@@ -67,7 +73,7 @@ CREATE TABLE IF NOT EXISTS categories (
 
 CREATE TABLE IF NOT EXISTS technicians (
   id      TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id),
+  user_id TEXT NOT NULL UNIQUE REFERENCES users(id),
   skill   TEXT NOT NULL
 );
 
@@ -121,11 +127,76 @@ CREATE TABLE IF NOT EXISTS ratings (
   stars      INTEGER NOT NULL CHECK (stars BETWEEN 1 AND 5),
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_id    TEXT,
+  actor_name  TEXT NOT NULL,
+  action      TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id   TEXT,
+  detail      TEXT,
+  created_at  TEXT NOT NULL
+);
 `;
 
-db.exec(SCHEMA);
+/**
+ * Indexes.
+ *
+ * Every foreign key that is used in a WHERE/JOIN clause gets an index: SQLite
+ * does not create them automatically, and the requests list is filtered by
+ * tenant, technician, property-manager and status on every page load.
+ */
+const INDEXES = [
+  'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+  'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)',
+  'CREATE INDEX IF NOT EXISTS idx_units_user ON units(user_id)',
+  'CREATE INDEX IF NOT EXISTS idx_units_property ON units(property_id)',
+  'CREATE INDEX IF NOT EXISTS idx_properties_manager ON properties(manager_id)',
+  'CREATE INDEX IF NOT EXISTS idx_technicians_user ON technicians(user_id)',
+  'CREATE INDEX IF NOT EXISTS idx_requests_tenant ON requests(tenant_id)',
+  'CREATE INDEX IF NOT EXISTS idx_requests_tech ON requests(tech_id)',
+  'CREATE INDEX IF NOT EXISTS idx_requests_property ON requests(property_id)',
+  'CREATE INDEX IF NOT EXISTS idx_requests_category ON requests(category)',
+  'CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status)',
+  'CREATE INDEX IF NOT EXISTS idx_requests_updated ON requests(updated DESC)',
+  'CREATE INDEX IF NOT EXISTS idx_comments_request ON comments(request_id)',
+  'CREATE INDEX IF NOT EXISTS idx_history_request ON history(request_id)',
+  'CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read)',
+  'CREATE INDEX IF NOT EXISTS idx_ratings_request ON ratings(request_id)',
+  'CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at DESC)',
+  'CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_id)',
+];
 
-/** Reference collections treated as code constants (kept in sync with the UI). */
+/**
+ * Forward-only migrations.
+ *
+ * `CREATE TABLE IF NOT EXISTS` never alters an existing table, so deployments
+ * that already hold a database (Render's persistent disk) need these additive
+ * column migrations before the new code can query them.
+ */
+const COLUMN_MIGRATIONS = [
+  { table: 'users', column: 'failed_logins', ddl: 'failed_logins INTEGER NOT NULL DEFAULT 0' },
+  { table: 'users', column: 'locked_until', ddl: 'locked_until TEXT' },
+];
+
+function runMigrations() {
+  for (const { table, column, ddl } of COLUMN_MIGRATIONS) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!cols.some((c) => c.name === column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+    }
+  }
+  for (const ddl of INDEXES) db.exec(ddl);
+}
+
+db.exec(SCHEMA);
+runMigrations();
+
+/* ------------------------------------------------------------------ */
+/* Reference collections treated as code constants (kept in sync with the UI). */
+/* ------------------------------------------------------------------ */
+
 const URGENCIES = [
   { id: 'low', name: 'Low' },
   { id: 'normal', name: 'Normal' },
@@ -147,8 +218,11 @@ const STATUSES = [
 
 const OPEN_STATUSES = ['submitted', 'under-review', 'assigned', 'in-progress', 'on-hold'];
 
+/** Statuses that count as finished work in reports. */
+const RESOLVED_STATUSES = ['completed', 'closed'];
+
 /* ------------------------------------------------------------------ */
-/* Seed data                                                          */
+/* Seed data                                                           */
 /* ------------------------------------------------------------------ */
 
 async function seedDatabase() {
@@ -156,7 +230,12 @@ async function seedDatabase() {
   if (row.n > 0) return;
 
   const bcrypt = require('bcryptjs');
-  const demoPassword = process.env.DEMO_PASSWORD || 'PropCare123!';
+  const demoPassword = process.env.DEMO_PASSWORD;
+  if (!demoPassword) {
+    throw new Error(
+      'DEMO_PASSWORD environment variable is not set. Please configure it in your .env file or Render dashboard.'
+    );
+  }
   const passwordHash = await bcrypt.hash(demoPassword, 10);
 
   const insertUser = db.prepare(
@@ -314,13 +393,13 @@ async function seedDatabase() {
   });
 
   const notifications = [
-    ['U1', '\uD83D\uDD14', 'Reminder: technician visit scheduled for REQ-1045 tomorrow.', '2026-08-13 16:00'],
-    ['U1', '\u2705', 'REQ-1027 (dishwasher) marked complete - please confirm.', '2026-08-12 10:22'],
-    ['U2', '\uD83D\uDD27', 'New request REQ-1078 awaiting review.', '2026-08-14 08:00'],
-    ['U2', '\uD83D\uDD27', 'Johan van der Merwe started work on REQ-1045.', '2026-08-14 14:40'],
-    ['U9', '\uD83D\uDD27', 'You have been assigned REQ-1045.', '2026-08-08 11:02'],
-    ['U9', '\u2705', 'Job REQ-1027 completed - awaiting tenant confirmation.', '2026-08-09 10:00'],
-    ['U14', '\uD83C\uDFE2', 'Inspection completed at Milnerton Sands Unit 11.', '2026-08-10 12:05'],
+    ['U1', '🔔', 'Reminder: technician visit scheduled for REQ-1045 tomorrow.', '2026-08-13 16:00'],
+    ['U1', '✅', 'REQ-1027 (dishwasher) marked complete - please confirm.', '2026-08-12 10:22'],
+    ['U2', '🔧', 'New request REQ-1078 awaiting review.', '2026-08-14 08:00'],
+    ['U2', '🔧', 'Johan van der Merwe started work on REQ-1045.', '2026-08-14 14:40'],
+    ['U9', '🔧', 'You have been assigned REQ-1045.', '2026-08-08 11:02'],
+    ['U9', '✅', 'Job REQ-1027 completed - awaiting tenant confirmation.', '2026-08-09 10:00'],
+    ['U14', '🏢', 'Inspection completed at Milnerton Sands Unit 11.', '2026-08-10 12:05'],
   ];
   notifications.forEach(([userId, icon, title, createdAt]) => {
     insertNotification.run(userId, icon, title, createdAt);
@@ -328,8 +407,30 @@ async function seedDatabase() {
 
   insertRating.run('REQ-1027', 'U5', 5, '2026-08-10 11:00');
 
+<<<<<<< HEAD
   console.log(`[propcare] seeded database with ${users.length} users, ${properties.length} properties and ${requests.length} requests.`);
-  console.log(`[propcare] demo password for all accounts: ${demoPassword}`);
+  console.log(`[propcare] demo password for all accounts: ${process.env.DEMO_PASSWORD || 'not configured'}`);
+}
+
+/** Run several writes as one atomic unit (all repositories use this for multi-table writes). */
+function transaction(fn) {
+  db.exec('BEGIN');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+=======
+  console.log(
+    `[propcare] seeded database with ${users.length} users, ` +
+    `${properties.length} properties and ${requests.length} requests.`
+  );
+
+  console.log('[propcare] demo account credentials configured.');
 }
 
 /* ------------------------------------------------------------------ */
@@ -367,6 +468,13 @@ const q = {
     JOIN users u ON u.id = p.manager_id
     JOIN requests r ON r.property_id = p.id
     WHERE r.tenant_id = ? ORDER BY p.name
+  `),
+  propertiesForTechnician: () => db.prepare(`
+    SELECT DISTINCT p.*, u.name AS manager_name
+    FROM properties p
+    JOIN users u ON u.id = p.manager_id
+    JOIN requests r ON r.property_id = p.id
+    WHERE r.tech_id = ? ORDER BY p.name
   `),
   propertyById: () => db.prepare(`
     SELECT p.*, u.name AS manager_name FROM properties p
@@ -437,7 +545,7 @@ requestAll: () => db.prepare(`
   requestIdsAll: () => db.prepare('SELECT id FROM requests'),
   insertRequest: () => db.prepare(`
     INSERT INTO requests (id, property_id, unit, tenant_id, category, title, detail, urgency, status, tech_id, created, updated, photos)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NULL, ?, ?, 0)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'submitted', NULL, ?, ?, ?)
   `),
   updateRequestStatus: () => db.prepare('UPDATE requests SET status = ?, updated = ? WHERE id = ?'),
   updateRequestAssign: () => db.prepare('UPDATE requests SET tech_id = ?, urgency = ?, status = ?, updated = ? WHERE id = ?'),
@@ -492,6 +600,18 @@ requestAll: () => db.prepare(`
     LEFT JOIN requests r ON r.property_id = p.id
     WHERE p.manager_id = ? GROUP BY p.id ORDER BY p.name
   `),
+  countOpenByProperty: () => db.prepare(`
+    SELECT p.id, p.name, COUNT(r.id) AS n FROM properties p
+    LEFT JOIN requests r ON r.property_id = p.id
+      AND r.status IN (${OPEN_STATUSES.map((s) => `'${s}'`).join(', ')})
+    GROUP BY p.id ORDER BY p.name
+  `),
+  countOpenByPropertyForManager: () => db.prepare(`
+    SELECT p.id, p.name, COUNT(r.id) AS n FROM properties p
+    LEFT JOIN requests r ON r.property_id = p.id
+      AND r.status IN (${OPEN_STATUSES.map((s) => `'${s}'`).join(', ')})
+    WHERE p.manager_id = ? GROUP BY p.id ORDER BY p.name
+  `),
   tenantCount: () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'tenant'"),
   managerCount: () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'manager'"),
   technicianCount: () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'technician'"),
@@ -499,12 +619,14 @@ requestAll: () => db.prepare(`
   propertyCount: () => db.prepare('SELECT COUNT(*) AS n FROM properties'),
   unitCount: () => db.prepare('SELECT COUNT(*) AS n FROM units'),
 };
+>>>>>>> upstream/main
 
 module.exports = {
   db,
-  q,
+  transaction,
   URGENCIES,
   STATUSES,
   OPEN_STATUSES,
+  RESOLVED_STATUSES,
   seedDatabase,
 };

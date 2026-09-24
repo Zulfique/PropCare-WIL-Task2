@@ -3,10 +3,10 @@ const app = require('../src/app');
 
 const PASSWORD = 'PropCare123!';
 
-async function login(email) {
+async function login(email, password = PASSWORD) {
   const res = await request(app)
     .post('/api/auth/login')
-    .send({ email, password: PASSWORD });
+    .send({ email, password });
   return res.body.data.token;
 }
 
@@ -43,10 +43,57 @@ describe('RBAC - admin-only endpoints', () => {
     const res = await request(app)
       .post('/api/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ name: 'New Tenant', email: 'new.tenant@example.com', password: 'StrongPass1!', role: 'tenant' });
+      .send({
+        name: 'New Tenant',
+        email: 'new.tenant@example.com',
+        password: 'StrongPass1!',
+        role: 'tenant',
+        propertyId: 'P1',
+        unit: 'Claremont Unit 9C',
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.data.user.email).toBe('new.tenant@example.com');
+    // A tenant is attached to their unit at creation time so they can raise
+    // requests immediately (see the bug report: previously this was impossible).
+    expect(res.body.data.user.units).toContain('Claremont Unit 9C');
+  });
+
+  it('creates a technician with a trade record so it can be assigned work', async () => {
+    const token = await login('admin@obsrealty.co.za');
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'New Technician',
+        email: 'new.technician@example.com',
+        password: 'StrongPass1!',
+        role: 'technician',
+        skill: 'Plumbing',
+      });
+
+    expect(res.status).toBe(201);
+
+    const techs = await request(app)
+      .get('/api/technicians')
+      .set('Authorization', `Bearer ${token}`);
+    expect(techs.body.data.technicians.some((t) => t.email === 'new.technician@example.com')).toBe(true);
+  });
+
+  it('rejects a tenant creation with no unit assignment', async () => {
+    const token = await login('admin@obsrealty.co.za');
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Homeless Tenant',
+        email: 'no.unit@example.com',
+        password: 'StrongPass1!',
+        role: 'tenant',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toContain('property and unit');
   });
 
   it('rejects a duplicate user email with 409', async () => {
@@ -54,7 +101,14 @@ describe('RBAC - admin-only endpoints', () => {
     const res = await request(app)
       .post('/api/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ name: 'Copy', email: 'new.tenant@example.com', password: 'StrongPass1!', role: 'tenant' });
+      .send({
+        name: 'Copy',
+        email: 'new.tenant@example.com',
+        password: 'StrongPass1!',
+        role: 'tenant',
+        propertyId: 'P1',
+        unit: 'Claremont Unit 9C',
+      });
 
     expect(res.status).toBe(409);
   });
@@ -86,8 +140,11 @@ describe('RBAC - technician directory', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.technicians.length).toBe(5);
+    // Five technicians are seeded; the admin may have created more earlier in
+    // this suite, so assert on the seeded set rather than an exact count.
+    expect(res.body.data.technicians.length).toBeGreaterThanOrEqual(5);
     expect(res.body.data.technicians[0]).toHaveProperty('skill');
+    expect(res.body.data.technicians.some((t) => t.id === 'T1')).toBe(true);
   });
 
   it('lists technicians for admins', async () => {
@@ -292,7 +349,14 @@ describe('RBAC - admin deactivation', () => {
     const created = await request(app)
       .post('/api/users')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ name: 'Temp User', email: 'temp.user@example.com', password: 'TempPass1!', role: 'tenant' });
+      .send({
+        name: 'Temp User',
+        email: 'temp.user@example.com',
+        password: 'TempPass1!',
+        role: 'tenant',
+        propertyId: 'P1',
+        unit: 'Claremont Unit 8A',
+      });
     const userId = created.body.data.user.id;
 
     const deactivate = await request(app)
@@ -304,6 +368,49 @@ describe('RBAC - admin deactivation', () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'temp.user@example.com', password: 'TempPass1!' });
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('deactivated');
+  });
+
+  it('rejects an existing token after the account is deactivated', async () => {
+    const adminToken = await login('admin@obsrealty.co.za');
+
+    const email = `existing-token-${Date.now()}@example.com`;
+
+    const created = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Existing Token User',
+        email,
+        password: 'ExistingPass1!',
+        role: 'tenant',
+      });
+
+    expect(created.status).toBe(201);
+
+    const userId = created.body.data.user.id;
+
+    // Obtain a valid JWT while the account is active.
+    const userToken = await login(email, 'ExistingPass1!');
+
+    expect(userToken).toBeTruthy();
+
+    // Deactivate the account after the JWT has already been issued.
+    const deactivate = await request(app)
+      .put(`/api/users/${userId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        active: false,
+      });
+
+    expect(deactivate.status).toBe(200);
+
+    // The previously issued JWT must no longer grant access.
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${userToken}`);
+
     expect(res.status).toBe(403);
     expect(res.body.message).toContain('deactivated');
   });

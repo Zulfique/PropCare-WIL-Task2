@@ -92,16 +92,18 @@ describe('Requests API - GET /api/requests/:id', () => {
     expect(r.comments.length).toBe(3);
     expect(r.history.length).toBeGreaterThanOrEqual(4);
   });
+it('returns the seeded rating on a completed request', async () => {
+  const token = await login('priya.naidoo@example.com');
 
-  it('returns the seeded rating on a completed request', async () => {
-    const token = await login('priya.naidoo@example.com');
-    const res = await request(app)
-      .get('/api/requests/REQ-1027')
-      .set('Authorization', `Bearer ${token}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.data.request.rating).toBe(5);
-  });
+  const res = await request(app)
+    .get('/api/requests/REQ-1027')
+    .set('Authorization', `Bearer ${token}`);
+
+
+  expect(res.status).toBe(200);
+  expect(res.body.data.request.rating).toBe(5);
+});
 
   it('returns 404 for an unknown request id', async () => {
     const token = await login('sarahwilliams@example.com');
@@ -134,6 +136,41 @@ describe('Requests API - POST /api/requests (tenant create)', () => {
     expect(r.status).toBe('submitted');
     expect(r.categoryName).toBe('Plumbing');
     expect(r.tenantName).toBe('Sarah Williams');
+  });
+
+  it('carries the wizard photo count onto the created request', async () => {
+    const token = await login('sarahwilliams@example.com');
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'plumbing',
+        unit: 'Claremont Unit 3B',
+        title: 'Photo count carry-over test',
+        detail: 'Reported with photos attached in the wizard.',
+        urgency: 'normal',
+        photos: 2,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.request.photos).toBe(2);
+  });
+
+  it('rejects an out-of-range photo count', async () => {
+    const token = await login('sarahwilliams@example.com');
+    const res = await request(app)
+      .post('/api/requests')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        category: 'plumbing',
+        unit: 'Claremont Unit 3B',
+        title: 'Too many photos',
+        detail: 'x',
+        urgency: 'low',
+        photos: 99,
+      });
+
+    expect(res.status).toBe(400);
   });
 
   it('rejects creation from a non-tenant role', async () => {
@@ -335,16 +372,19 @@ describe('Requests API - comments, photos and rating', () => {
     expect(res.body.data.request.photos).toBe(photosBefore + 1);
   });
 
-  it('rejects rating a request that is not completed', async () => {
-    const token = await login('priya.naidoo@example.com');
+it('rejects rating a request that is not completed', async () => {
+    const token = await login('sarahwilliams@example.com');
+
+
     const res = await request(app)
-      .post('/api/requests/REQ-1027/rate')
+      .post('/api/requests/REQ-1045/rate')
       .set('Authorization', `Bearer ${token}`)
       .send({ stars: 4 });
 
+
     expect(res.status).toBe(400);
-    expect(res.body.message).toContain('already been rated');
-  });
+    expect(res.body.message).toContain('completed');
+});
 
   it('rejects an out-of-range star rating', async () => {
     const token = await login('sarahwilliams@example.com');

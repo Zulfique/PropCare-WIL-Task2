@@ -11,7 +11,6 @@ const {
 } = require('../middleware/validate');
 const { AppError } = require('../middleware/errorHandler');
 const service = require('../services/requests');
-const logger = require('../utils/logger');
 
 const router = express.Router();
 

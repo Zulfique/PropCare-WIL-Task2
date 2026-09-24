@@ -4,12 +4,6 @@
   var state = { user: null };
 
   /* ---------------- helpers ---------------- */
-  function el(html) {
-    var t = document.createElement('template');
-    t.innerHTML = html.trim();
-    return t.content.firstChild;
-  }
-
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -103,7 +97,60 @@
     return new Date().toISOString().slice(0, 10);
   }
 
-  function openCount(list) { return list.filter(isOpen).length; }
+  /**
+   * Parse the API's timestamps. `created` is date-only ("2026-08-08") while
+   * `updated` carries a time once a request has been touched
+   * ("2026-08-14 14:40"), so the space has to become a 'T' before Date accepts
+   * it. Returns null for anything unparseable.
+   */
+  function parseStamp(v) {
+    if (!v) return null;
+    var d = new Date(String(v).trim().replace(' ', 'T'));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function isResolved(r) { return r.status === 'completed' || r.status === 'closed'; }
+
+  /** Mean time from creation to last update across resolved requests, in hours. */
+  function meanResolutionHours(list) {
+    var hours = (list || []).filter(isResolved).reduce(function (acc, r) {
+      var from = parseStamp(r.created);
+      var to = parseStamp(r.updated);
+      if (!from || !to || to < from) return acc;
+      acc.push((to - from) / 36e5);
+      return acc;
+    }, []);
+    if (!hours.length) return null;
+    return hours.reduce(function (a, b) { return a + b; }, 0) / hours.length;
+  }
+
+  /** "3.5 days" / "186 hours" - whichever reads better for the magnitude. */
+  function formatDuration(hours) {
+    if (hours == null) return '\u2014';
+    if (hours < 1) return Math.max(1, Math.round(hours * 60)) + 'm';
+    if (hours < 48) return (Math.round(hours * 10) / 10) + 'h';
+    return (Math.round((hours / 24) * 10) / 10) + ' days';
+  }
+
+  /**
+   * Open requests past the response target for their urgency. The targets are
+   * an explicit policy choice - there is no due-date column in the schema - so
+   * they live here rather than being implied by a hardcoded total.
+   */
+  var OVERDUE_TARGET_DAYS = { urgent: 1, high: 3, normal: 7, low: 14 };
+
+  function overdueRequests(list, now) {
+    var ref = now ? parseStamp(now) : new Date();
+    if (!ref) return 0;
+    return (list || []).filter(function (r) {
+      if (!isOpen(r)) return false;
+      var target = OVERDUE_TARGET_DAYS[r.urgency];
+      if (!target) return false;
+      var from = parseStamp(r.created);
+      if (!from) return false;
+      return (ref - from) / 864e5 > target;
+    }).length;
+  }
 
   function statCard(num, cap, delta) {
     return '<div class="stat"><div class="num">' + num + '</div><div class="cap">' + cap +
@@ -216,7 +263,6 @@
     box.innerHTML = html;
     document.getElementById('modalBackdrop').classList.remove('hidden');
     // Manage focus: move to the modal heading if present, else the first control.
-    var modal = box.closest('.modal');
     var heading = box.querySelector('h2') || box.querySelector('h3');
     if (heading) heading.setAttribute('tabindex', '-1');
     if (heading) heading.focus();
@@ -286,7 +332,7 @@
       var today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
       var name = state.user.name.split(' ')[0];
       var units = state.user.units || [];
-      var cats = props.properties.length ? '' : '';
+      var avgResponse = formatDuration(meanResolutionHours(reqs));
       render(
         '<div class="hero"><h1>Good ' + (new Date().getHours() < 12 ? 'morning' : 'afternoon') + ', ' + esc(name) + '</h1>' +
         '<p>' + today + ' &middot; Keep an eye on your home. We will keep you updated.</p></div>' +
@@ -294,7 +340,7 @@
         statCard(open.length, 'Open requests', need + ' need priority attention') +
         statCard(reqs.filter(function (r) { return r.status === 'completed' || r.status === 'closed'; }).length, 'Resolved', 'across your units') +
         statCard(units.length, 'Your units', 'across the portfolio') +
-        statCard('1.8h', 'Average response', 'operational rhythm') +
+        statCard(avgResponse, 'Average response', 'created to resolved') +
         '</div>' +
         '<div class="grid two-col">' +
         '<div class="card"><h3 class="card-title">Recent requests <small>' + open.length + ' open</small></h3>' +
@@ -328,6 +374,7 @@
         return (a.urgency === b.urgency) ? 0 : (a.urgency === 'urgent' ? -1 : 1);
       });
       var name = state.user.name.split(' ')[0];
+      var avgResponse = formatDuration(meanResolutionHours(reqs));
       render(
         '<div class="hero"><h1>Good morning, ' + esc(name) + '</h1><p>Your managed portfolio &middot; ' +
         props.properties.length + ' properties &middot; ' + open.length + ' open maintenance requests.</p></div>' +
@@ -335,7 +382,7 @@
         statCard(props.properties.length, 'Properties managed', 'across Cape Town') +
         statCard(open.length, 'Open requests', urgent + ' need priority attention') +
         statCard((rep ? rep.resolved : '—'), 'Resolved', 'portfolio total') +
-        statCard('1.8h', 'Avg response', 'operational rhythm') +
+        statCard(avgResponse, 'Avg response', 'created to resolved') +
         '</div>' +
         '<div class="card"><h3 class="card-title">Priority queue</h3><div class="table-wrap"><table><thead><tr>' +
         '<th>Request</th><th>Status</th><th>Priority</th><th>Updated</th></tr></thead><tbody>' +
@@ -351,16 +398,19 @@
       var buzz = await fetchOnce('/api/requests');
       var reqs = buzz.requests;
       var jobs = reqs.filter(isOpen);
-      var done = reqs.filter(function (r) { return r.status === 'completed' || r.status === 'closed'; });
+      var done = reqs.filter(isResolved);
       var today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+      var monthName = new Date().toLocaleDateString('en-GB', { month: 'long' });
+      var avgResponse = formatDuration(meanResolutionHours(reqs));
+      var overdue = overdueRequests(jobs);
       render(
         '<div class="hero"><h1>Good morning, ' + esc(state.user.name.split(' ')[0]) + '</h1><p>Today &middot; ' + today + ' &middot; ' +
         jobs.length + ' active job(s) in your queue.</p></div>' +
         '<div class="grid stat-grid">' +
         statCard(jobs.length, 'Active jobs', 'assigned to you') +
-        statCard(done.length, 'Completed this month', 'work verified') +
-        statCard('1.8h', 'Avg response', 'portfolio-wide') +
-        statCard('0', 'Overdue', 'on service plan') +
+        statCard(done.length, 'Completed in ' + monthName, 'work verified') +
+        statCard(avgResponse, 'Avg response', 'created to resolved') +
+        statCard(overdue, 'Overdue', 'past target for urgency') +
         '</div>' +
         '<div class="card"><h3 class="card-title">Assigned jobs</h3><div class="req-list">' +
         (jobs.map(reqRow).join('') || emptyUI('\uD83C\uDFAF', 'You have no active jobs right now.')) +
@@ -1288,7 +1338,6 @@
 
   /* ---------------- login ---------------- */
   var EMAILS = {
-    'sarahwilliams@example.com': 'Sarah Williams — Tenant',
     'michael.jacobs@obsrealty.co.za': 'Michael Jacobs — Property Manager',
     'johan.vdm@obsrealty.co.za': 'Johan van der Merwe — Technician',
     'admin@obsrealty.co.za': 'System Admin — Administrator'
@@ -1383,7 +1432,12 @@
   window.PropCareApp = {
     route: route,
     closeModal: closeModal,
-    init: function () {
+    parseStamp: parseStamp,
+    meanResolutionHours: meanResolutionHours,
+    formatDuration: formatDuration,
+    overdueRequests: overdueRequests,
+    isResolved: isResolved,
+    initials: initials,
       wireLogin();
       wireGlobal();
       if (API.token()) {

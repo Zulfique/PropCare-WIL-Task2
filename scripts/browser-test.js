@@ -30,18 +30,10 @@ function record(step, status, note) {
 }
 
 const EMAILS = {
-  tenant: 'sarahwilliams@example.com',
   manager: 'michael.jacobs@obsrealty.co.za',
   tech: 'johan.vdm@obsrealty.co.za',
   admin: 'admin@obsrealty.co.za'
 };
-const NAMES = {
-  tenant: 'Sarah Williams',
-  manager: 'Michael Jacobs',
-  tech: 'Johan van der Merwe',
-  admin: 'System Admin'
-};
-const PASSWORD = 'PropCare123!';
 
 function errFile(kind, roleOrName) {
   return path.join(SHOTS, 'errors', `${kind}-${roleOrName}.png`);
@@ -78,7 +70,10 @@ async function login(page, role) {
       banner: (document.querySelector('#appBody .error-banner') || {}).textContent || '',
       hash: location.hash,
     }));
-    throw new Error('login failed as ' + role + ' -> ' + JSON.stringify(diag));
+    // `failureShot`, not `shot`: `shot()` is the module-level screenshot helper.
+    const failureShot = await captureError(page, 'login', role);
+    throw new Error('login failed as ' + role + ' -> ' + JSON.stringify(diag) +
+      (failureShot ? ' (screenshot: ' + path.relative(process.cwd(), failureShot) + ')' : ''));
   }
   await page.waitForFunction(() => document.querySelectorAll('.hero').length > 0, { timeout: 10000 });
   const name = await page.evaluate(() => document.getElementById('userName').textContent);
@@ -90,6 +85,15 @@ async function shot(page, role, name) {
   const dir = path.join(SHOTS, role);
   fs.mkdirSync(dir, { recursive: true });
   await page.screenshot({ path: path.join(dir, name + '.png'), fullPage: true });
+}
+
+async function captureError(page, role, step) {
+  const dir = path.join(SHOTS, role, 'errors');
+  fs.mkdirSync(dir, { recursive: true });
+  const timestamp = Date.now();
+  const path = path.join(dir, `${step}-${timestamp}.png`);
+  await page.screenshot({ path, fullPage: true });
+  return path;
 }
 
 async function waitRendered(page) {

@@ -1,0 +1,1 @@
+const { type, at, request, actor, action, stars } = event;

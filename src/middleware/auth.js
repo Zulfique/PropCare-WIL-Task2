@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken');
 const { AppError } = require('./errorHandler');
-<<<<<<< HEAD
+
 const { repositories } = require('../repositories');
-=======
+
 const { q } = require('../db');
->>>>>>> upstream/main
+
 const logger = require('../utils/logger');
 
 const ISSUER = 'propcare';
@@ -31,7 +31,7 @@ const authenticate = (req, res, next) => {
 
   let decoded;
   try {
-<<<<<<< HEAD
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
 
     // Always check the current database account. This means deactivated users
@@ -60,14 +60,14 @@ const authenticate = (req, res, next) => {
   } catch (err) {
     logger.warn('Invalid JWT token attempt', { ip: req.ip, url: req.originalUrl });
 
-=======
+
     decoded = jwt.verify(token, process.env.JWT_SECRET, JWT_VERIFY_OPTIONS);
   } catch (err) {
     logger.warn('Invalid JWT token attempt', {
       ip: req.ip,
       url: req.originalUrl,
     });
->>>>>>> upstream/main
+
     if (err.name === 'TokenExpiredError') {
       return next(new AppError('Token has expired. Please login again.', 401));
     }

@@ -8,8 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const PUPPETEER_PATH = 'C:/Users/27635/AppData/Roaming/npm/node_modules/puppeteer';
-const CHROME = 'C:/Users/27635/.cache/puppeteer/chrome/win64-150.0.7871.24/chrome-win64/chrome.exe';
+const CHROME = process.env.PPC_CHROME || process.env.CHROME || undefined;
 const BASE = process.env.PPC_BASE || 'http://localhost:8124';
 const SHOTS = path.join(__dirname, '..', 'browser-shots');
 const SHOTS_ONLY = process.argv.indexOf('--shots-only') !== -1;
@@ -492,12 +491,12 @@ async function keyboardSuite(browser) {
   fs.rmSync(SHOTS, { recursive: true, force: true });
   fs.mkdirSync(SHOTS, { recursive: true });
 
-  const puppeteer = require(PUPPETEER_PATH);
+  const puppeteer = require('puppeteer');
   const browser = await puppeteer.launch({
-    executablePath: CHROME,
-    headless: 'new',
-    defaultViewport: { width: 1440, height: 900 },
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1440,900']
+      ...(CHROME ? { executablePath: CHROME } : {}),
+      headless: true,
+      defaultViewport: { width: 1440, height: 900 },
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1440,900']
   });
 
   let lifecycleId = null;

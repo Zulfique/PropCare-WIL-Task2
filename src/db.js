@@ -151,11 +151,8 @@ const OPEN_STATUSES = ['submitted', 'under-review', 'assigned', 'in-progress', '
 /* Seed data                                                          */
 /* ------------------------------------------------------------------ */
 
-async function seedDatabase() {
-  const row = db.prepare('SELECT COUNT(*) AS n FROM users').get();
-  if (row.n > 0) return;
-
-  const bcrypt = require('bcryptjs');
+const seedDatabase = async () => {
+const bcrypt = require('bcryptjs');
   const demoPassword = process.env.DEMO_PASSWORD || 'PropCare123!';
   const passwordHash = await bcrypt.hash(demoPassword, 10);
 
@@ -329,11 +326,16 @@ async function seedDatabase() {
   insertRating.run('REQ-1027', 'U5', 5, '2026-08-10 11:00');
 
   console.log(
-    `[propcare] seeded database with ${users.length} users, ` +
+    '[propcare] seeded database with ' + users.length + ' users, ' +
     `${properties.length} properties and ${requests.length} requests.`
   );
 
-  console.log('[propcare] demo account credentials configured.');
+  // Never echo the password itself: DEMO_PASSWORD may be configured with a real
+  // value, and anything logged here ends up in the host's log stream.
+  console.log(
+    '[propcare] demo accounts ready - password comes from DEMO_PASSWORD ' +
+    (process.env.DEMO_PASSWORD ? `(${process.env.DEMO_PASSWORD.length} chars, not shown)` : '(not configured)')
+  );
 }
 
 /* ------------------------------------------------------------------ */

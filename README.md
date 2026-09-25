@@ -9,7 +9,7 @@ PropCare is a full-stack property maintenance management platform for Obs Realty
 | Repository | <https://github.com/Zulfique/PropCare-WIL-Task2> |
 | Local application | <http://localhost:8124> |
 | API health check | <http://localhost:8124/api/health> |
-| Task 1 prototype | <https://zulfique.github.io/PropCare-WIL-Task2/prototype/> |
+| Task 1 prototype | <https://zulfiquejattiem.github.io/PropCare-WIL-Task2/prototype/> |
 | Render deployment | <https://propcare-wil-task2.onrender.com/> |
 
 ## Features

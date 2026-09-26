@@ -5,9 +5,8 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
- +  # Lets the build and Pages publish be run on demand from the Actions tab.
- +  workflow_dispatch:
-  
+  workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
@@ -21,22 +20,29 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Validate prototype HTML
         run: |
           for f in prototype/*.html; do
             echo "Checking $f"
             npx --yes html-validate "$f"
           done
+
       - name: Validate JavaScript syntax
         run: |
           for f in prototype/js/*.js prototype/data/*.js; do
             node --check "$f"
           done
+
       - name: Check README present
         run: |
-          test -f "README.md" && echo "README present"
+          test -f README.md
+          echo "README present"
+
       - name: Upload prototype artifact
         uses: actions/upload-artifact@v4
         with:
@@ -48,26 +54,30 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
     environment:
       name: github-pages
-      # Must be a literal: `jobs.<id>.environment.url` is resolved before the job
-    # starts, so the `steps` context is not available here and a
-    # `${{ steps.deployment.outputs.page_url }}` reference always rendered
-    # empty. Update this if the repository or its owner is renamed.
-    url: https://zulfiquejattiem.github.io/PropCare-WIL-Task2/prototype/
+      url: https://zulfique.github.io/PropCare-WIL-Task2/prototype/
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: prototype
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
       - name: Deployment Complete
         run: |
-          echo "✅ Deploy complete!"
-          echo "🚀 Live at: https://zulfique.github.io/PropCare-WIL-Task2/prototype/"
+          echo "Deploy complete!"
+          echo "Live at: https://zulfique.github.io/PropCare-WIL-Task2/prototype/"

@@ -89,5 +89,5 @@ This affects only the browser-test tooling, not the production runtime. NPM's au
 The application no longer logs `DEMO_PASSWORD` at startup. The seed message now reads:
 
 ```
-[propcare] demo account credentials configured.
+[propcare] demo accounts ready - password comes from DEMO_PASSWORD
 ```

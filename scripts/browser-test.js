@@ -77,7 +77,7 @@ async function login(page, role) {
       banner: (document.querySelector('#appBody .error-banner') || {}).textContent || '',
       hash: location.hash,
     }));
-<    // `failureShot`, not `shot`: `shot()` is the module-level screenshot helper.
+    // `failureShot`, not `shot`: `shot()` is the module-level screenshot helper.
     const failureShot = await captureError(page, 'login', role);
     throw new Error('login failed as ' + role + ' -> ' + JSON.stringify(diag) +
       (failureShot ? ' (screenshot: ' + path.relative(process.cwd(), failureShot) + ')' : ''));

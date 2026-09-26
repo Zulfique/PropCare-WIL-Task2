@@ -161,7 +161,10 @@ const seedDatabase = async () => {
   }
 
 const bcrypt = require('bcryptjs');
-  const demoPassword = process.env.DEMO_PASSWORD || 'PropCare123!';
+  const demoPassword = process.env.DEMO_PASSWORD;
+  if (!demoPassword) {
+    throw new Error('DEMO_PASSWORD must be configured before seeding the database.');
+  }
   const passwordHash = await bcrypt.hash(demoPassword, 10);
 
   const insertUser = db.prepare(

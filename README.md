@@ -225,15 +225,25 @@ No known vulnerabilities in production dependencies.
 
 ### Development dependencies
 
-One audit warning remains through Puppeteer's browser-download tooling:
+`npm audit` reports **0 vulnerabilities in production dependencies** and **4 high-severity advisories confined to the Puppeteer browser-test tooling**:
 
 ```
-puppeteer
+puppeteer (dev, direct)
+├── puppeteer-core
 └── @puppeteer/browsers
     └── extract-zip
 ```
 
-This affects only the browser-test tooling, not the production runtime. npm's automatic fix would downgrade Puppeteer to 19.8.0 using a breaking change, which would break the current test suite. The warning is acceptable for dev-only use.
+| Advisory | Range | Severity |
+| --- | --- | --- |
+| `puppeteer` | 19.8.1 – 24.43.1 | high |
+| `puppeteer-core` | 19.8.4 – 24.43.1 | high |
+| `@puppeteer/browsers` | ≤ 2.13.2 | high |
+| `extract-zip` | * | high |
+
+**Why it is acceptable:** every one of these sits in the browser-download tooling used only by `npm run test:browser`. None of it is loaded by `server.js` or deployed to Render, and no user-supplied archive is ever extracted at runtime, so the vulnerable code path is unreachable in production.
+
+**Why it is not auto-fixed:** `npm audit fix --force` resolves these by *downgrading* Puppeteer to 19.8.0, a breaking change that would break the browser suite. The correct remediation is an *upgrade* to Puppeteer 25.x, which is outside the `^24.20.0` range and therefore needs a deliberate, tested major-version bump rather than a silent automated one.
 
 ### Credential logging
 

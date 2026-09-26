@@ -57,7 +57,7 @@ jobs:
 
     environment:
       name: github-pages
-      url: https://zulfique.github.io/PropCare-WIL-Task2/prototype/
+      url: https://zulfique.github.io/PropCare-WIL-Task2-v2/
 
     runs-on: ubuntu-latest
 
@@ -80,4 +80,4 @@ jobs:
       - name: Deployment Complete
         run: |
           echo "Deploy complete!"
-          echo "Live at: https://zulfique.github.io/PropCare-WIL-Task2/prototype/"
+          echo "Live at: https://zulfique.github.io/PropCare-WIL-Task2-v2/"

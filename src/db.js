@@ -206,7 +206,7 @@ const crypto = require('node:crypto');
     ? null
     : crypto.randomBytes(18).toString('base64url');
   const demoPassword = configuredDemoPassword || generatedDemoPassword;
-  const passwordHash = await bcrypt.hash(demoPassword, 10);
+  const passwordHash = await bcrypt.hash(demoPassword, 12);
 
   const insertUser = db.prepare(
     'INSERT INTO users (id, name, email, password_hash, role, active, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)'

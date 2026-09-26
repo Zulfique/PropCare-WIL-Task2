@@ -80,7 +80,7 @@ RESTful JSON under `/api`. Correct HTTP methods and status codes throughout.
 | Admin | `GET/POST/PATCH /api/users`, `/api/categories`, `/api/reports` |
 | Health | `GET /api/health` |
 
-Responses are `{ success, data }` on success and `{ success: false, error, details }` on failure.
+Responses use `{ status: 'success', data }` on success, `{ status: 'success', message }` for action-only replies such as logout, and `{ status: 'error', statusCode, message }` on failure. The HTTP status code is always the source of truth; `status` mirrors it for client convenience.
 
 ## Demo accounts
 
@@ -236,7 +236,9 @@ No known vulnerabilities in production dependencies.
 
 ### Development dependencies
 
-`npm audit` reports **0 vulnerabilities in production dependencies** and **4 high-severity advisories confined to the Puppeteer browser-test tooling**:
+`npm audit` reports **0 vulnerabilities** across both production and development dependencies.
+
+Puppeteer was upgraded from `24.43.1` to `25.12.0` to clear four high-severity advisories that were confined to the browser-download tooling:
 
 ```
 puppeteer (dev, direct)
@@ -245,16 +247,14 @@ puppeteer (dev, direct)
     └── extract-zip
 ```
 
-| Advisory | Range | Severity |
-| --- | --- | --- |
-| `puppeteer` | 19.8.1 – 24.43.1 | high |
-| `puppeteer-core` | 19.8.4 – 24.43.1 | high |
-| `@puppeteer/browsers` | ≤ 2.13.2 | high |
-| `extract-zip` | * | high |
+| Advisory | Vulnerable range | Severity | Resolved in |
+| --- | --- | --- | --- |
+| `puppeteer` | 19.8.1 – 24.43.1 | high | 25.12.0 |
+| `puppeteer-core` | 19.8.4 – 24.43.1 | high | 25.12.0 |
+| `@puppeteer/browsers` | ≤ 2.13.2 | high | 25.12.0 |
+| `extract-zip` | * | high | 25.12.0 |
 
-**Why it is acceptable:** every one of these sits in the browser-download tooling used only by `npm run test:browser`. None of it is loaded by `server.js` or deployed to Render, and no user-supplied archive is ever extracted at runtime, so the vulnerable code path is unreachable in production.
-
-**Why it is not auto-fixed:** `npm audit fix --force` resolves these by *downgrading* Puppeteer to 19.8.0, a breaking change that would break the browser suite. The correct remediation is an *upgrade* to Puppeteer 25.x, which is outside the `^24.20.0` range and therefore needs a deliberate, tested major-version bump rather than a silent automated one.
+**Why it was a deliberate major bump:** the remediating version sat outside the previous `^24.20.0` range, and `npm audit fix --force` resolved the advisories by *downgrading* Puppeteer to 19.8.0, which would have broken the browser suite. The upgrade was made explicitly and then validated with the full 70-check browser suite and 102-check unit/API suite rather than applied as an untested automated change.
 
 ### Credential logging
 

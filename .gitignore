@@ -10,6 +10,9 @@ data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 
+# Generated demo credentials (written beside the database at first boot)
+**/demo-credentials.txt
+
 # Logs
 *.log
 logs/

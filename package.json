@@ -7,7 +7,6 @@
     "start": "node --experimental-sqlite server.js",
     "dev": "nodemon --experimental-sqlite server.js",
     "seed": "node --experimental-sqlite scripts/seed-cli.js",
-
     "test": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js",
 
     "test:serial": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",

@@ -7,10 +7,18 @@
     "start": "node --experimental-sqlite server.js",
     "dev": "nodemon --experimental-sqlite server.js",
     "seed": "node --experimental-sqlite scripts/seed-cli.js",
-    "test": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit --detectOpenHandles",
+
+    "test": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js",
+
+    "test:serial": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+
+    "test:debug": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --verbose",
+
     "test:watch": "node --experimental-sqlite --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+
     "test:browser": "node scripts/browser-test.js",
     "test:browser:shots": "node scripts/browser-test.js --shots-only",
+
     "check": "node --check server.js && node --check src/app.js && node --check src/db.js && node --check src/services/requests.js && node --check public/js/api.js && node --check public/js/app.js"
   },
   "keywords": [

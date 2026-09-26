@@ -27,6 +27,8 @@ services:
       # Generate a long random value (>= 32 chars) in the Render dashboard.
       - key: JWT_SECRET
         sync: false
-      # Override the demo password (must be set in Render dashboard, sync: false).
+      # Optional. If left unset the seed step generates a strong random demo
+      # password and writes it to /data/demo-credentials.txt (never to logs).
+      # Set it to pin a password you choose yourself.
       - key: DEMO_PASSWORD
         sync: false

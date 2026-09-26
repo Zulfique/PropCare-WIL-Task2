@@ -84,7 +84,7 @@ Responses are `{ success, data }` on success and `{ success: false, error, detai
 
 ## Demo accounts
 
-Seeded accounts share the password `PropCare123!` unless `DEMO_PASSWORD` is set in the environment.
+All four demo accounts share one password. Set `DEMO_PASSWORD` in the environment to choose it yourself; if you leave it unset, the first boot generates a strong random password instead of shipping a hardcoded default in the repository.
 
 | Role | Email | Can do |
 |------|-------|--------|
@@ -92,6 +92,17 @@ Seeded accounts share the password `PropCare123!` unless `DEMO_PASSWORD` is set 
 | Property Manager | `michael.jacobs@obsrealty.co.za` | Review/prioritise, assign technicians, monitor portfolio, reports |
 | Technician | `johan.vdm@obsrealty.co.za` | Accept jobs, update status, complete work with notes/photos |
 | Administrator | `admin@obsrealty.co.za` | Users, roles, categories, tenants, reports, settings |
+
+### If `DEMO_PASSWORD` is not set
+
+The generated password is **never printed to the logs**. It is written to `demo-credentials.txt` beside the database — `/data/demo-credentials.txt` on Render, `data/demo-credentials.txt` locally — with `0600` permissions. Read it back from the host shell:
+
+```bash
+cat /data/demo-credentials.txt   # on Render
+cat data/demo-credentials.txt    # locally
+```
+
+Delete that file and the database if you want to reseed with a password of your own.
 
 Do not use demo credentials in production.
 

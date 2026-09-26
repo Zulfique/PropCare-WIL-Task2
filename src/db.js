@@ -188,10 +188,24 @@ const seedDatabase = async () => {
   }
 
 const bcrypt = require('bcryptjs');
-  const demoPassword = process.env.DEMO_PASSWORD;
-  if (!demoPassword) {
-    throw new Error('DEMO_PASSWORD must be configured before seeding the database.');
-  }
+const crypto = require('node:crypto');
+
+  // Resolve the demo password.
+  //
+  // DEMO_PASSWORD is optional on purpose. Hard-failing here used to crash the
+  // service on its very first boot, because a fresh Render disk has no database
+  // yet and therefore always needs seeding -- so an operator who followed the
+  // README and set only JWT_SECRET got a boot loop instead of a running app.
+  //
+  // When it is absent we generate a strong random password at seed time instead
+  // of shipping a hardcoded default in the repository. The value is never
+  // logged; it is written to a gitignored file beside the database so the
+  // operator can read it back from the host's filesystem or shell.
+  const configuredDemoPassword = process.env.DEMO_PASSWORD;
+  const generatedDemoPassword = configuredDemoPassword
+    ? null
+    : crypto.randomBytes(18).toString('base64url');
+  const demoPassword = configuredDemoPassword || generatedDemoPassword;
   const passwordHash = await bcrypt.hash(demoPassword, 10);
 
   const insertUser = db.prepare(
@@ -373,12 +387,55 @@ const bcrypt = require('bcryptjs');
       ' requests.'
   );
 
-  console.log(
-    '[propcare] demo accounts ready - password comes from DEMO_PASSWORD ' +
-      (process.env.DEMO_PASSWORD
-        ? `(${process.env.DEMO_PASSWORD.length} chars, not shown)`
-        : '(not configured)')
-  );
+  if (configuredDemoPassword) {
+    console.log(
+      '[propcare] demo accounts ready - password comes from DEMO_PASSWORD ' +
+        `(${configuredDemoPassword.length} chars, not shown)`
+    );
+  } else {
+    // Never write the generated password to stdout. Persist it beside the
+    // database instead so the operator can retrieve it from the host shell.
+    const credentialsPath = path.join(
+      path.dirname(resolveDbPath()),
+      'demo-credentials.txt'
+    );
+    try {
+      fs.writeFileSync(
+        credentialsPath,
+        [
+          'PropCare demo accounts',
+          'Generated automatically because DEMO_PASSWORD was not set.',
+          'Sign in with any of these emails using the password below:',
+          '',
+          '  Tenant          sarahwilliams@example.com',
+          '  Property manager michael.jacobs@obsrealty.co.za',
+          '  Technician      johan.vdm@obsrealty.co.za',
+          '  Administrator   admin@obsrealty.co.za',
+          '',
+          'Password: ' + demoPassword,
+          '',
+          'Set DEMO_PASSWORD in the host environment and delete this file to',
+          'choose your own password and reseed from a clean database.',
+          ''
+        ].join('\n'),
+        { encoding: 'utf8', mode: 0o600 }
+      );
+      console.log(
+        '[propcare] DEMO_PASSWORD not set - generated a random demo password.'
+      );
+      console.log(
+        '[propcare] read it from: ' + credentialsPath +
+          ' (not printed here by design)'
+      );
+    } catch (err) {
+      console.log(
+        '[propcare] DEMO_PASSWORD not set and the generated demo password ' +
+          'could not be written to disk (' + err.message + '). Demo accounts ' +
+          'were seeded but their password is now unrecoverable - delete the ' +
+          'database and set DEMO_PASSWORD to reseed.'
+      );
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */

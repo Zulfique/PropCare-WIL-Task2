@@ -125,6 +125,33 @@ CREATE TABLE IF NOT EXISTS ratings (
 
 db.exec(SCHEMA);
 
+/**
+ * Secondary indexes.
+ *
+ * SQLite only indexes the implicit PRIMARY KEY / UNIQUE constraints, so every
+ * foreign key and every column we filter or sort on needs an explicit index.
+ * Without these the joins in q.requestById(), the per-tenant / per-manager
+ * lookups and the notification feed all degrade to full table scans.
+ */
+const INDEXES = `
+CREATE INDEX IF NOT EXISTS idx_users_role            ON users(role);
+CREATE INDEX IF NOT EXISTS idx_properties_manager    ON properties(manager_id);
+CREATE INDEX IF NOT EXISTS idx_units_user            ON units(user_id);
+CREATE INDEX IF NOT EXISTS idx_units_property        ON units(property_id);
+CREATE INDEX IF NOT EXISTS idx_technicians_user      ON technicians(user_id);
+CREATE INDEX IF NOT EXISTS idx_requests_property     ON requests(property_id);
+CREATE INDEX IF NOT EXISTS idx_requests_tenant       ON requests(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_requests_category     ON requests(category);
+CREATE INDEX IF NOT EXISTS idx_requests_tech         ON requests(tech_id);
+CREATE INDEX IF NOT EXISTS idx_requests_status       ON requests(status);
+CREATE INDEX IF NOT EXISTS idx_comments_request     ON comments(request_id);
+CREATE INDEX IF NOT EXISTS idx_history_request      ON history(request_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user    ON notifications(user_id, read);
+CREATE INDEX IF NOT EXISTS idx_ratings_request       ON ratings(request_id);
+`;
+
+db.exec(INDEXES);
+
 /** Reference collections treated as code constants (kept in sync with the UI). */
 const URGENCIES = [
   { id: 'low', name: 'Low' },

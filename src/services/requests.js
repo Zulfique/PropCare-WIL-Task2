@@ -1,5 +1,9 @@
-const { db, q, OPEN_STATUSES } = require('../db');
+const { OPEN_STATUSES } = require('../db');
 const { AppError } = require('../middleware/errorHandler');
+const { requestRepository } = require('../repositories/request.repository');
+const { referenceRepository } = require('../repositories/reference.repository');
+const { userRepository } = require('../repositories/user.repository');
+const { notificationSubject } = require('../observers/notification.observer');
 const logger = require('../utils/logger');
 
 function nowStamp() {
@@ -8,14 +12,14 @@ function nowStamp() {
 }
 
 function listForUser(user) {
-  if (user.role === 'admin') return q.requestAll().all();
-  if (user.role === 'tenant') return q.requestByTenant().all(user.id);
+  if (user.role === 'admin') return requestRepository.findAll();
+  if (user.role === 'tenant') return requestRepository.findByTenant(user.id);
   if (user.role === 'technician') {
-    const tech = q.technicianByUserId().get(user.id);
-    return tech ? q.requestByTechnician().all(tech.id) : [];
+    const tech = referenceRepository.findTechnicianByUser(user.id);
+    return tech ? requestRepository.findByTechnician(tech.id) : [];
   }
   // manager - requests on managed properties
-  return q.requestByManagerProps().all(user.id);
+  return requestRepository.findByManager(user.id);
 }
 
 function rowToDetail(row) {
@@ -66,20 +70,20 @@ function listToDetail(rows) {
  * Object-level authorisation: does this user have access to this request?
  */
 function canView(user, row) {
-  const owner = q.userByIdFull().get(row.tenant_id);
+  const owner = userRepository.findFull(row.tenant_id);
   if (user.role === 'admin') return true;
   if (user.role === 'tenant') return row.tenant_id === user.id;
   if (user.role === 'technician') {
-    const tech = q.technicianByUserId().get(user.id);
+    const tech = referenceRepository.findTechnicianByUser(user.id);
     return !!tech && row.tech_id === tech.id;
   }
   // manager - owns the property the request belongs to
-  const prop = q.propertyById().get(row.property_id);
+  const prop = referenceRepository.findProperty(row.property_id);
   return prop && prop.manager_id === user.id;
 }
 
 function getDetail(user, id) {
-  const row = q.requestById().get(id);
+  const row = requestRepository.find(id);
   if (!row) {
     throw new AppError(`Request ${id} not found`, 404);
   }
@@ -87,17 +91,17 @@ function getDetail(user, id) {
     throw new AppError('You do not have permission to view this request.', 403);
   }
   const detail = rowToDetail(row);
-  detail.comments = q.commentsForRequest().all(id).map((c) => ({
+  detail.comments = requestRepository.findComments(id).map((c) => ({
     by: c.name,
     role: c.role_label,
     when: c.created_at,
     text: c.text,
   }));
-  detail.history = q.historyForRequest().all(id).map((h) => ({
+  detail.history = requestRepository.findHistory(id).map((h) => ({
     status: h.status,
     when: h.created_at,
   }));
-  const rating = q.ratingForRequest().get(id);
+  const rating = requestRepository.findRating(id);
   detail.rating = rating ? rating.stars : null;
   return detail;
 }
@@ -151,7 +155,7 @@ const ACTION_NOTE = {
 };
 
 function applyStatusAction(user, id, action, text) {
-  const row = q.requestById().get(id);
+  const row = requestRepository.find(id);
   if (!row) {
     throw new AppError(`Request ${id} not found`, 404);
   }
@@ -178,42 +182,25 @@ function applyStatusAction(user, id, action, text) {
 
   const when = nowStamp();
   const note = text || ACTION_NOTE[action] || 'Status updated.';
-  q.updateRequestStatus().run(nextStatus, when.slice(0, 10), id);
-  q.insertHistory().run(id, statusLabel(nextStatus), when);
-  q.insertComment().run(id, user.id, user.name, roleLabel(user.role), note, when);
+  requestRepository.updateStatus(id, nextStatus, when.slice(0, 10));
+  requestRepository.addHistory(id, statusLabel(nextStatus), when);
+  requestRepository.addComment(id, user.id, user.name, roleLabel(user.role), note, when);
 
-  // Notify the tenant (and manager for technician actions) about the change.
-  notifyForRequest(row, user, action, id);
+  // Publish the status change; observers decide who needs telling.
+  notificationSubject.publish({
+    type: 'request.status-changed',
+    row,
+    actor: user,
+    action,
+    requestId: id,
+  });
 
   logger.info('Request status action', { action, requestId: id, userId: user.id });
   return getDetail(user, id);
 }
 
-function notifyForRequest(row, actor, action, requestId) {
-  const stamp = nowStamp();
-  const tenantName = row.tenant_name;
-  if (action === 'confirm' || action === 'approve' || action === 'cancel') {
-    q.insertNotification().run(row.tenant_id, '\u2705', `Request ${requestId} was ${action}ed by ${actor.name}.`, stamp);
-  }
-  if (action === 'accept' || action === 'complete') {
-    const techName = row.technician_name || actor.name;
-    const title = action === 'accept'
-      ? `${techName} accepted job ${requestId}.`
-      : `${techName} marked ${requestId} complete - awaiting confirmation.`;
-    if (row.tenant_id) q.insertNotification().run(row.tenant_id, '\uD83D\uDD27', title, stamp);
-  }
-  // Notify the property manager for tenant + technician actions
-  if (action === 'cancel' || action === 'confirm' || action === 'reopen' || action === 'complete') {
-    const prop = q.propertyById().get(row.property_id);
-    if (prop && prop.manager_id !== actor.id) {
-      q.insertNotification().run(prop.manager_id, '\uD83D\uDD27',
-        `${actor.name} ${action === 'complete' ? 'completed' : action + 'ed'} ${requestId}.`, stamp);
-    }
-  }
-}
-
 function assignRequest(manager, id, technicianId, urgency, note) {
-  const row = q.requestById().get(id);
+  const row = requestRepository.find(id);
   if (!row) {
     throw new AppError(`Request ${id} not found`, 404);
   }
@@ -226,27 +213,31 @@ function assignRequest(manager, id, technicianId, urgency, note) {
   if (['submitted', 'under-review'].indexOf(row.status) === -1) {
     throw new AppError('Only submitted or under-review requests can be assigned.', 400);
   }
-  const tech = q.technicianById().get(technicianId);
+  const tech = referenceRepository.findTechnician(technicianId);
   if (!tech) {
     throw new AppError('Technician not found.', 404);
   }
 
   const when = nowStamp();
-  q.updateRequestAssign().run(technicianId, urgency, 'assigned', when.slice(0, 10), id);
-  q.insertHistory().run(id, statusLabel('assigned'), when);
+  requestRepository.assign(id, technicianId, urgency, 'assigned', when.slice(0, 10));
+  requestRepository.addHistory(id, statusLabel('assigned'), when);
   const noteText = note || `Assigned to ${tech.name}.`;
-  q.insertComment().run(id, manager.id, manager.name, roleLabel('manager'), noteText, when);
+  requestRepository.addComment(id, manager.id, manager.name, roleLabel('manager'), noteText, when);
 
-  q.insertNotification().run(tech.user_id, '\uD83D\uDD27', `You have been assigned ${id} - ${row.title}.`, when);
-  q.insertNotification().run(row.tenant_id, '\uD83D\uDD27',
-    `${manager.name} assigned a technician to ${id}.`, when);
+  notificationSubject.publish({
+    type: 'request.assigned',
+    row,
+    technician: tech,
+    manager,
+    requestId: id,
+  });
 
   logger.info('Request assigned', { requestId: id, technicianId, managerId: manager.id });
   return getDetail(manager, id);
 }
 
 function rateRequest(tenant, id, stars) {
-  const row = q.requestById().get(id);
+  const row = requestRepository.find(id);
   if (!row) {
     throw new AppError(`Request ${id} not found`, 404);
   }
@@ -256,24 +247,26 @@ function rateRequest(tenant, id, stars) {
   if (row.status !== 'completed') {
     throw new AppError('Only completed requests can be rated.', 400);
   }
-  const existing = q.ratingForRequest().get(id);
+  const existing = requestRepository.findRating(id);
   if (existing) {
     throw new AppError('This request has already been rated.', 400);
   }
   const when = nowStamp();
-  q.insertRating().run(id, tenant.id, stars, when);
-  q.insertComment().run(id, tenant.id, tenant.name, roleLabel('tenant'),
+  requestRepository.addRating(id, tenant.id, stars, when);
+  requestRepository.addComment(id, tenant.id, tenant.name, roleLabel('tenant'),
     `Tenant rated the completed work ${stars} out of 5.`, when);
-  const prop = q.propertyById().get(row.property_id);
-  if (prop) {
-    q.insertNotification().run(prop.manager_id, '\u2B50',
-      `${tenant.name} rated ${id} ${stars}/5.`, when);
-  }
+  notificationSubject.publish({
+    type: 'request.rated',
+    row,
+    tenant,
+    stars,
+    requestId: id,
+  });
   return getDetail(tenant, id);
 }
 
 function commentOnRequest(user, id, text) {
-  const row = q.requestById().get(id);
+  const row = requestRepository.find(id);
   if (!row) {
     throw new AppError(`Request ${id} not found`, 404);
   }
@@ -281,29 +274,29 @@ function commentOnRequest(user, id, text) {
     throw new AppError('You do not have permission to comment on this request.', 403);
   }
   const when = nowStamp();
-  q.insertComment().run(id, user.id, user.name, roleLabel(user.role), text, when);
+  requestRepository.addComment(id, user.id, user.name, roleLabel(user.role), text, when);
   return getDetail(user, id);
 }
 
 function addPhoto(user, id) {
-  const row = q.requestById().get(id);
+  const row = requestRepository.find(id);
   if (!row) {
     throw new AppError(`Request ${id} not found`, 404);
   }
   if (!canView(user, row)) {
     throw new AppError('You do not have permission to update this request.', 403);
   }
-  q.incrementPhotos().run(nowStamp().slice(0, 10), id);
+  requestRepository.addPhoto(id, nowStamp().slice(0, 10));
   return getDetail(user, id);
 }
 
 function createRequest(tenant, body) {
-  const row = q.nextReqNumber().get();
+  const row = requestRepository.nextRequestNumber();
   const nextNum = (row.n || 1079) + 1;
   const id = `REQ-${nextNum}`;
   const today = nowStamp().slice(0, 10);
 
-  const units = q.unitsForUser().all(tenant.id);
+  const units = referenceRepository.findUnitsForUser(tenant.id);
   // Derive property_id from the unit the tenant submitted, rather than always
   // defaulting to the first unit in the tenant's unit list.
   const selectedUnit = units.find((u) => u.name === body.unit);
@@ -312,26 +305,26 @@ function createRequest(tenant, body) {
   }
   const propertyId = selectedUnit.property_id;
 
-  q.insertRequest().run(
+  requestRepository.insert({
     id,
     propertyId,
-    body.unit,
-    tenant.id,
-    body.category,
-    body.title,
-    body.detail || 'No further details provided.',
-    body.urgency,
-    today,
-    today
-  );
-  q.insertHistory().run(id, statusLabel('submitted'), nowStamp());
+    unit: body.unit,
+    tenantId: tenant.id,
+    category: body.category,
+    title: body.title,
+    detail: body.detail || 'No further details provided.',
+    urgency: body.urgency,
+    created: today,
+  });
+  requestRepository.addHistory(id, statusLabel('submitted'), nowStamp());
 
-  // Notify the property manager of a new request.
-  const prop = q.propertyById().get(propertyId);
-  if (prop) {
-    q.insertNotification().run(prop.manager_id, '\uD83D\uDD27',
-      `New request ${id} submitted by ${tenant.name}.`, nowStamp());
-  }
+  // Publish the new request; observers notify the property manager.
+  notificationSubject.publish({
+    type: 'request.created',
+    propertyId,
+    requestId: id,
+    tenant,
+  });
 
   logger.info('New request created', { requestId: id, tenantId: tenant.id, category: body.category });
   return getDetail(tenant, id);

@@ -2,19 +2,99 @@
 
 PropCare is a full-stack property maintenance management platform for **Obs Realty Group**. It includes the Task 2 Express/SQLite application with a JWT-secured REST API and a vanilla JavaScript single-page front end, plus the original Task 1 prototype.
 
-> **Canonical repository:** <https://github.com/Zulfique/PropCare-WIL-Task2-v2>
-> Legacy repository (kept for history): <https://github.com/Zulfique/PropCare-WIL-Task2>
+**Status: live on Render's Free plan at <https://propcare-wil-task2.onrender.com/> — no API keys, tokens or secrets required.**
 
-## Quick links
+## All URLs
+
+### The application
 
 | Resource | URL |
 | --- | --- |
-| Repository | <https://github.com/Zulfique/PropCare-WIL-Task2-v2> |
-| Live application (Render) | <https://propcare-wil-task2.onrender.com/> |
-| API health check | <https://propcare-wil-task2.onrender.com/api/health> |
+| **Live app (Render, Free)** | <https://propcare-wil-task2.onrender.com/> |
+| Live API health check | <https://propcare-wil-task2.onrender.com/api/health> |
+| Live API index (self-documenting endpoint list) | <https://propcare-wil-task2.onrender.com/api> |
 | Task 1 prototype (GitHub Pages) | <https://zulfique.github.io/PropCare-WIL-Task2-v2/> |
-| Local application | <http://localhost:8124> |
+
+### Source and automation
+
+| Resource | URL |
+| --- | --- |
+| Repository (this file lives here) | <https://github.com/Zulfique/PropCare-WIL-Task2-v2> |
+| Actions / CI runs | <https://github.com/Zulfique/PropCare-WIL-Task2-v2/actions> |
+| CI workflow — lint, tests, audit | <https://github.com/Zulfique/PropCare-WIL-Task2-v2/actions/workflows/ci.yml> |
+| CD workflow — live deployment verification | <https://github.com/Zulfique/PropCare-WIL-Task2-v2/actions/workflows/deploy.yml> |
+| Pages build workflow | <https://github.com/Zulfique/PropCare-WIL-Task2-v2/actions/workflows/build.yml> |
+| Blueprint config | [`render.yaml`](render.yaml) |
+
+### Local
+
+| Resource | URL |
+| --- | --- |
+| Local app | <http://localhost:8124> |
 | Local API health check | <http://localhost:8124/api/health> |
+
+## How to run the app
+
+### Option A — use the live deployment (nothing to install)
+
+Open <https://propcare-wil-task2.onrender.com/> and sign in with any demo account using the password `PropCare123!`. That is the whole process; there is no key, token or account to create.
+
+The one behaviour to expect: the service sleeps after 15 minutes without traffic, so the **first** request after a quiet period takes roughly 30-60 seconds while it wakes, during which Render shows a loading page. Everything after that is instant. The database is rebuilt from the seed on each wake, so the app is always fully populated.
+
+### Option B — run it locally
+
+**Prerequisite:** Node.js **22.5 or newer** (the app uses the built-in `node:sqlite` module, so there is no native build step and nothing to compile).
+
+```bash
+# 1. Get the code
+git clone https://github.com/Zulfique/PropCare-WIL-Task2-v2.git
+cd PropCare-WIL-Task2-v2
+
+# 2. Install dependencies
+npm ci
+
+# 3. Create your local config (a copy of the documented defaults)
+cp .env.example .env        # PowerShell: Copy-Item .env.example .env
+
+# 4. Start the app
+npm start
+```
+
+Then open **<http://localhost:8124>** and sign in with any demo account using `PropCare123!`.
+
+`.env` is optional. Every value in it has a working default, and `JWT_SECRET` in particular may be left empty — the server generates a random one at boot and tells you it did. Set it only if you want sessions to survive a restart; if you do set it, it must be at least 32 characters or startup is refused.
+
+To start on a different port, or with no database file at all:
+
+```bash
+PORT=3000 npm start
+DB_PATH=:memory: npm start
+```
+
+### Option C — deploy your own copy to Render (Free)
+
+1. Sign in at [dashboard.render.com](https://dashboard.render.com) using **GitHub**, so Render is authorized to read your repositories.
+2. **New + > Blueprint**.
+3. Select the repository **`PropCare-WIL-Task2-v2`**.
+4. Fill in: **Blueprint Name** `propcare-wil-task2`, **Branch** `main`, and leave **Blueprint Path** blank (it defaults to `render.yaml` at the repo root).
+5. **Apply**. Render creates the service from [`render.yaml`](render.yaml) and deploys automatically.
+
+**Do not add a `JWT_SECRET`, a disk, or a Postgres instance.** None are required — every value in the Blueprint has an in-code default, and adding a persistent disk will make the Blueprint fail to provision because Render's Free plan cannot attach one. Creating the Blueprint is the entire setup; there is no step 6.
+
+Once it is live, every push to `main` is deployed by Render's own Git integration, and the `CD - Verify live deployment` workflow independently polls `/api/health` to prove the new commit is actually serving.
+
+### Running the tests
+
+```bash
+npm ci
+npm test              # 110 unit and API tests
+npm run check         # syntax check every server and browser script
+npm audit             # dependency audit
+
+npm run test:browser  # 70-check end-to-end browser suite (drives a real Chromium)
+```
+
+The browser suite writes full-page screenshots and a summary to `browser-shots/` as evidence.
 
 ## What PropCare does
 
@@ -35,7 +115,7 @@ PropCare is a full-stack property maintenance management platform for **Obs Real
 | Database | SQLite via `node:sqlite` (auto-created + seeded on first run) |
 | Logging | `winston`, `morgan` |
 | Front end | Vanilla JS SPA (`public/`) served by Express |
-| Tests | `jest` + `supertest` + `puppeteer` (102 automated tests) |
+| Tests | `jest` + `supertest` + `puppeteer` (110 automated tests) |
 | CI/CD | GitHub Actions (3 workflows) + Render Blueprint |
 
 > `node:sqlite` is experimental in Node 22/23, so the app runs with `--experimental-sqlite`.
@@ -107,24 +187,6 @@ This fallback exists for local and paid-host use. It is **not** how the Render F
 
 Do not use demo credentials in production.
 
-## Run locally
-
-Prerequisites: **Node.js ≥ 22.5** (uses built-in `node:sqlite`), npm.
-
-```bash
-npm ci
-Copy-Item .env.example .env   # then set JWT_SECRET (>= 32 chars) in .env
-npm run seed                  # optional - the DB auto-seeds on first boot
-npm start                     # node --experimental-sqlite server.js
-# open http://localhost:8124
-```
-
-`JWT_SECRET` is optional: leave it out and the server generates a random one at boot and keeps going. If you do set one, it must be at least 32 characters or startup is refused. See `.env.example` for `PORT`, `DB_PATH` and `DEMO_PASSWORD`. To pin your own so sessions survive restarts, generate a secret with:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
 ## Tests
 
 ```bash
@@ -136,7 +198,7 @@ npm run test:browser  # headless Puppeteer walk-through of every screen/button p
 
 | Suite | Scope | Result |
 | --- | --- | --- |
-| `npm test` | 5 Jest + supertest suites (auth, lifecycle, RBAC, reports, patterns) | **102 / 102 pass** |
+| `npm test` | 6 Jest + supertest suites (auth, lifecycle, RBAC, reports, patterns, secret) | **110 / 110 pass** |
 | `npm run test:browser` | Headless walk-through of every screen, button and function for all 4 roles + mobile + accessibility | pass |
 | `npm run check` | `node --check` syntax gate | pass |
 | GitHub Actions | `CI - Lint, Build and Test` on `main` and `develop` | green |
@@ -147,7 +209,7 @@ The suites cover authentication, RBAC (role **and** object-level), the request l
 
 | Suite | Scope | Result |
 | --- | --- | --- |
-| `npm test` | 5 Jest + supertest API suites | **102 / 102 pass** |
+| `npm test` | 6 Jest + supertest API suites | **110 / 110 pass** |
 | `npm run check` | `node --check` syntax gate | pass |
 | GitHub Actions | `CI - Lint, Build and Test` | green |
 | GitHub Actions | `Build, Test and Deploy` | green |
@@ -160,7 +222,20 @@ The browser suite drives the app end-to-end: login per role, report wizard (phot
 
 The deployment target is **Render's Free compute plan**, configured entirely in `render.yaml`: no persistent disk to buy, no database to provision, and **no secret, API key or token to supply anywhere**. Creating the Blueprint is the entire setup step.
 
-### Live deployment
+### Live deployment — verified
+
+Deployed from Blueprint `exs-darj9e7pn0mc73cq0mv0` and confirmed working end to end against the live host:
+
+| Check | Result |
+| --- | --- |
+| `GET /api/health` | `200` — `{"status":"success","message":"PropCare API is running"}` |
+| `GET /` (SPA shell) | `200` — serves the front end |
+| `GET /api` | `200` — self-documenting endpoint index |
+| `POST /api/auth/login` (code-pinned demo password, no secret) | `200` — returns a signed JWT |
+| `GET /api/requests` with that token | `200` — 12 seeded requests |
+| `GET /api/requests` with no token | `401` — correctly rejected |
+
+The live service runs with **no `JWT_SECRET` configured at all**, which is what proves the boot-time generation path works in production and not only on a developer machine.
 
 - `render.yaml` — Render Blueprint (Free Web Service, Node 22). Builds with `npm ci --omit=dev`, starts with `node --experimental-sqlite server.js`, health-checks `/api/health`, and stores the SQLite file at `DB_PATH=/tmp/propcare.db`. Every value in the file has a working in-code default, and there is not a single `sync: false` entry — that keyword is what makes Render prompt an operator for a value, which is exactly the manual step this configuration removes.
 - `.github/workflows/deploy.yml` — **token-free**. Render's Git integration deploys on its own when `main` changes, so no deploy hook is stored or used (a deploy hook is a bearer token). The workflow runs the pre-flight gate (`npm ci`, tests, syntax checks, `npm audit`) and then polls the live `/api/health` until it answers 200. If the hostname does not resolve at all it reports that no service has been created yet and exits cleanly; any HTTP response at all — including 404 or 502 — is treated as "live but still starting" and waited on, so a real outage fails the build while a not-yet-created service does not.
@@ -179,13 +254,7 @@ The deployment target is **Render's Free compute plan**, configured entirely in 
 | **Express + vanilla JS** | Keeps the deliverable dependency-light and fast to load, which protects the front-end load-time requirement. No framework build step, so the Pages deploy and the Render deploy share the same source. |
 | **GitHub Actions** | Tests and live verification run on every push, giving the hands-off pipeline the rubric asks for, with the live URL as the CI/CD proof point. |
 
-**To go live in ~3 minutes:**
-
-1. Sign up at [render.com](https://render.com) (Hobby workspace, free, no card required).
-2. **New + → Blueprint** → pick `Zulfique/PropCare-WIL-Task2-v2`. Render reads `render.yaml` and creates the service.
-3. That is the whole setup. **Do not add a `JWT_SECRET`** — it is generated automatically — and do not add a disk or database; none are needed.
-4. The app is live at <https://propcare-wil-task2.onrender.com/> once the first build finishes. Sign in with any demo account below using `PropCare123!`.
-5. Push to `main` and the **Verify live deployment** job confirms the new commit is actually serving.
+To deploy your own copy, see [Option C](#how-to-run-the-app) — it is the same three-click Blueprint flow used for the live instance.
 
 ### What the Free plan costs you, stated plainly
 
@@ -274,7 +343,7 @@ puppeteer (dev, direct)
 | `@puppeteer/browsers` | ≤ 2.13.2 | high | 25.12.0 |
 | `extract-zip` | * | high | 25.12.0 |
 
-**Why it was a deliberate major bump:** the remediating version sat outside the previous `^24.20.0` range, and `npm audit fix --force` resolved the advisories by *downgrading* Puppeteer to 19.8.0, which would have broken the browser suite. The upgrade was made explicitly and then validated with the full 70-check browser suite and 102-check unit/API suite rather than applied as an untested automated change.
+**Why it was a deliberate major bump:** the remediating version sat outside the previous `^24.20.0` range, and `npm audit fix --force` resolved the advisories by *downgrading* Puppeteer to 19.8.0, which would have broken the browser suite. The upgrade was made explicitly and then validated with the full 70-check browser suite and 110-check unit/API suite rather than applied as an untested automated change.
 
 ### Credential logging
 

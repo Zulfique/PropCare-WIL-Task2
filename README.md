@@ -64,7 +64,7 @@ Supporting structure: routes → services (business rules) → repositories (dat
 - **Input validation** on every write route with `express-validator`, plus a 32 KB JSON body cap.
 - **Rate limiting** on authentication and write endpoints (429 on abuse).
 - **Helmet** security headers, **CORS allow-listing**, and a consistent JSON error envelope with correct status codes (400/401/403/404/409/429).
-- The seed log never prints `DEMO_PASSWORD`; the server refuses to start without a `JWT_SECRET` of at least 32 characters.
+- The seed log never prints `DEMO_PASSWORD`. A `JWT_SECRET` shorter than 32 characters is rejected outright; if none is set at all, a random one is generated per process (see [Deployment](#deployment-and-hosting-rationale)) so no secret has to be supplied.
 
 ## API
 
@@ -95,14 +95,15 @@ All four demo accounts share one password. Set `DEMO_PASSWORD` in the environmen
 
 ### If `DEMO_PASSWORD` is not set
 
-The generated password is **never printed to the logs**. It is written to `demo-credentials.txt` beside the database — `/data/demo-credentials.txt` on Render, `data/demo-credentials.txt` locally — with `0600` permissions. Read it back from the host shell:
+The generated password is **never printed to the logs**. It is written to `demo-credentials.txt` beside the database with `0600` permissions, and is git-ignored via `**/demo-credentials.txt`. Read it back from a host shell:
 
 ```bash
-cat /data/demo-credentials.txt   # on Render
-cat data/demo-credentials.txt    # locally
+cat data/demo-credentials.txt    # locally, or on any host that gives you a shell
 ```
 
 Delete that file and the database if you want to reseed with a password of your own.
+
+This fallback exists for local and paid-host use. It is **not** how the Render Free deployment is configured: Free instances expose no SSH or dashboard shell, so there would be no way to read the file. `render.yaml` therefore pins `DEMO_PASSWORD` explicitly.
 
 Do not use demo credentials in production.
 
@@ -118,7 +119,7 @@ npm start                     # node --experimental-sqlite server.js
 # open http://localhost:8124
 ```
 
-The server refuses to start without a valid `JWT_SECRET` (at least 32 characters). See `.env.example` for `PORT`, `DB_PATH` and `DEMO_PASSWORD`. On Windows, generate a secret with:
+`JWT_SECRET` is optional: leave it out and the server generates a random one at boot and keeps going. If you do set one, it must be at least 32 characters or startup is refused. See `.env.example` for `PORT`, `DB_PATH` and `DEMO_PASSWORD`. To pin your own so sessions survive restarts, generate a secret with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -157,31 +158,50 @@ The browser suite drives the app end-to-end: login per role, report wizard (phot
 
 ## Deployment and hosting rationale
 
+The deployment target is **Render's Free compute plan**, configured entirely in `render.yaml`: no persistent disk to buy, no database to provision, and **no secret, API key or token to supply anywhere**. Creating the Blueprint is the entire setup step.
+
 ### Live deployment
 
-- `render.yaml` — Render Blueprint (Web Service + persistent `/data` disk, Node 22). `DB_PATH=/data/propcare.db` keeps the database across deploys. `JWT_SECRET` is a required env var (`sync: false` — set it in the dashboard).
-- `.github/workflows/deploy.yml` — runs on every push to `main`, triggers the Render deploy hook, then a separate **Verify live deployment** job polls `/api/health` until the service answers 200. It accepts the hook from either the `RENDER_DEPLOY_HOOK_URL` repository secret (fully automatic) or the `hook_url` input on a manual run (no secret stored).
+- `render.yaml` — Render Blueprint (Free Web Service, Node 22). Builds with `npm ci --omit=dev`, starts with `node --experimental-sqlite server.js`, health-checks `/api/health`, and stores the SQLite file at `DB_PATH=/tmp/propcare.db`. Every value in the file has a working in-code default, and there is not a single `sync: false` entry — that keyword is what makes Render prompt an operator for a value, which is exactly the manual step this configuration removes.
+- `.github/workflows/deploy.yml` — **token-free**. Render's Git integration deploys on its own when `main` changes, so no deploy hook is stored or used (a deploy hook is a bearer token). The workflow runs the pre-flight gate (`npm ci`, tests, syntax checks, `npm audit`) and then polls the live `/api/health` until it answers 200. If the hostname does not resolve at all it reports that no service has been created yet and exits cleanly; any HTTP response at all — including 404 or 502 — is treated as "live but still starting" and waited on, so a real outage fails the build while a not-yet-created service does not.
+- `server.js` + `src/utils/secret.js` — the JWT signing secret is optional. When `JWT_SECRET` is unset the server generates a random 64-character secret at boot, logs only that it did so (never the value), and continues. A supplied secret that is present but shorter than 32 characters is still rejected outright rather than silently replaced.
 - GitHub Pages serves the Task 1 prototype via `.github/workflows/build.yml`.
 
 ### Why these choices
 
 | Decision | Rationale |
 |---|---|
-| **Render** over a VM | Zero-config Node deploys from the Blueprint, a persistent disk for SQLite, TLS, and automatic rebuilds on push — appropriate for a WIL demonstration that must be live and stable without a sysadmin. |
+| **Render Free** over a VM or paid plan | Genuinely $0 with no card, which is the constraint for this demonstration. The cost is stated plainly below rather than hidden. |
+| **No persistent disk** | Render's Free plan **cannot** attach one — persistent disks are a paid-plan feature. Requesting one in a Blueprint makes it fail to provision, so the app is designed for the Free plan's ephemeral filesystem and reseeds itself on every cold start. |
+| **Generated `JWT_SECRET`** | Removes the last manual secret, and is strictly stronger than the alternative: a fixed secret committed to the repository would let anyone who clones the repo mint valid tokens for the live deployment. Rotating per process means sessions never outlive the process that issued them. |
+| **Demo password in code** | Free instances offer no SSH or dashboard shell, so an operator cannot read a generated password off the filesystem. `DEMO_PASSWORD` is therefore pinned in `render.yaml`. It is a public credential for a database of fictional sample data — printed here and on the login screen — not a secret. |
 | **SQLite** (`node:sqlite`) | The dataset is small and single-tenant, so SQLite removes an external database dependency entirely. Using Node's built-in module means **no native compilation step**, so CI and Render builds stay fast and reliable. |
 | **Express + vanilla JS** | Keeps the deliverable dependency-light and fast to load, which protects the front-end load-time requirement. No framework build step, so the Pages deploy and the Render deploy share the same source. |
-| **GitHub Actions** | Tests and deploys run on every push, giving the hands-off pipeline the rubric asks for, with the live URL as the CI/CD proof point. |
-| **Persistent `/data` disk** | Without it every deploy would wipe the database, so Render restarts would lose all data — the single biggest stability risk in this architecture. |
+| **GitHub Actions** | Tests and live verification run on every push, giving the hands-off pipeline the rubric asks for, with the live URL as the CI/CD proof point. |
 
 **To go live in ~3 minutes:**
 
-1. Sign up at [render.com](https://render.com) (free tier, no card required).
-2. **New + → Blueprint** → pick `Zulfique/PropCare-WIL-Task2-v2` → Render reads `render.yaml` and creates the service + disk.
-3. In the web service's **Environment**, click *Add Environment Variable* → `JWT_SECRET` → paste the value generated above.
-4. Copy the **Deploy Hook URL** from *Settings → Deploy Hook*, then either run `gh secret set RENDER_DEPLOY_HOOK_URL` (permanent auto-deploy) or trigger the workflow manually from the Actions tab and paste it into the `hook_url` input.
-5. The deploy job polls the service until healthy, then the app is live at <https://propcare-wil-task2.onrender.com/> (health check: `/api/health`).
+1. Sign up at [render.com](https://render.com) (Hobby workspace, free, no card required).
+2. **New + → Blueprint** → pick `Zulfique/PropCare-WIL-Task2-v2`. Render reads `render.yaml` and creates the service.
+3. That is the whole setup. **Do not add a `JWT_SECRET`** — it is generated automatically — and do not add a disk or database; none are needed.
+4. The app is live at <https://propcare-wil-task2.onrender.com/> once the first build finishes. Sign in with any demo account below using `PropCare123!`.
+5. Push to `main` and the **Verify live deployment** job confirms the new commit is actually serving.
 
-> Free-tier caveat: Render spins the app down after ~15 min idle, so the first request after a cold start takes a few seconds. The `/api/health` check in the deploy workflow absorbs this.
+### What the Free plan costs you, stated plainly
+
+These are Render's documented Free-plan limits, not implementation gaps:
+
+| Limitation | Effect on this app |
+|---|---|
+| **Spins down after 15 min idle** | The first visitor after a quiet period waits ~30–60 s while the instance wakes. The health check absorbs this, but a demo should be opened shortly before it is presented. |
+| **Ephemeral filesystem** | The SQLite file is lost on every redeploy, restart and spin-down. The app **reseeds itself on the next cold start**, so it is always fully populated and immediately usable — but anything created during a session (new requests, comments, ratings) does not survive. |
+| **No persistent disk** | Not available on Free at all, hence the self-seeding design above. |
+| **No SSH or dashboard shell** | Hence the demo password is pinned in code rather than generated for you to retrieve. |
+| **750 instance hours/month per workspace** | One always-on service would consume the entire allowance, so a second service in the same workspace risks suspension until the month resets. |
+| **5 GB outbound bandwidth/month** | Ample for a demonstration; exceeding it without a payment method suspends free services. |
+| **`/robots.txt` is auto-"disallow" while asleep** | Search engines will not wake the service. Irrelevant for a graded demonstration. |
+
+**If durable data is ever required**, the upgrade path is a paid Starter instance ($7/mo) with a persistent disk mounted at `/data` and `DB_PATH=/data/propcare.db` — the application code needs no changes, only that one environment variable.
 
 ## Branching & CI
 
@@ -197,7 +217,7 @@ Professional Gitflow, mapped to the rubric's "Branching and workflow" requiremen
 |---|---|---|
 | `ci.yml` | push + PR on `main`/`develop` | Lint, syntax check, dependency audit, full test suite |
 | `build.yml` | push + PR | Validate HTML/CSS/JS, build and publish the prototype to GitHub Pages |
-| `deploy.yml` | push to `main` | Test, trigger the Render deploy hook, then verify `/api/health` is live |
+| `deploy.yml` | push to `main` | Pre-flight gate, then verify `/api/health` is live on Render (no deploy token) |
 
 ## Screens
 
